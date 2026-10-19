@@ -1,4 +1,4 @@
-/* IEAT EMCC incident dashboard — static site, live data from ArcGIS with a bundled fallback. */
+/* EMCC incident dashboard — static site, live data from ArcGIS with a bundled fallback. */
 (() => {
   'use strict';
 
@@ -10,18 +10,23 @@
   const TYPES = [FIRE, 'ระเบิด', 'สารเคมีรั่วไหล', 'อุบัติเหตุ', 'อื่นๆ'];
   const TYPE_VAR = { 'เพลิงไหม้': '--t-fire', 'ระเบิด': '--t-blast', 'สารเคมีรั่วไหล': '--t-chem', 'อุบัติเหตุ': '--t-acc', 'อื่นๆ': '--t-other' };
   const MONTHS = ['ต.ค.', 'พ.ย.', 'ธ.ค.', 'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.'];
-  const SLOTS = ['00.00 - 07.59 น.', '08.00 - 15.59 น.', '16.00 - 23.59 น.'];
+  const SLOTS = ['08.00 - 15.59 น.', '16.00 - 23.59 น.', '00.00 - 07.59 น.'];
+  const QLABEL = { 1: 'ต.ค.–ธ.ค.', 2: 'ม.ค.–มี.ค.', 3: 'เม.ย.–มิ.ย.', 4: 'ก.ค.–ก.ย.' };
 
   const css = getComputedStyle(document.documentElement);
   const cv = (name) => css.getPropertyValue(name).trim();
   const typeColor = (t) => cv(TYPE_VAR[t] || '--t-other');
   const fmt = d3.format(',');
+  const fmt1 = d3.format(',.1f');
   const pct = d3.format('.0%');
+  const pct1 = d3.format('.1%');
   const $ = (id) => document.getElementById(id);
   const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+  const NS = 'http://www.w3.org/2000/svg';
 
   const state = { fy: 'all', q: 'all', type: 'all', estate: 'all', sortKey: 'case', sortDir: -1, search: '' };
   let rows = [];
+  let fys = [];
 
   // ---------- data ----------
   const txt = (v) => { const s = String(v ?? '').replace(/ /g, ' ').trim(); return s && s !== '-' ? s : null; };
@@ -29,7 +34,9 @@
   function normalize(r) {
     const mi = parseInt(txt(r['เดือน']) || '', 10);
     let slot = txt(r['Rank_เวลา']);
-    if (slot && slot.startsWith('24.00')) slot = SLOTS[0];
+    if (slot && slot.startsWith('24.00')) slot = '00.00 - 07.59 น.';
+    const op = txt(r['ขณะเกิดเหตุมีการประกอบกิจการหรือไม่']);
+    const resp = Number(r['เวลาระงับเหตุ']);
     return {
       raw: r,
       case: num(r.Case_),
@@ -47,6 +54,9 @@
       time: txt(r['เวลา']) || '',
       inj: num(r['จำนวนผู้บาดเจ็บ']),
       dead: num(r['จำนวนผู้เสียชีวิต']),
+      // operating at the time: true / false / null (unknown)
+      operating: op == null ? null : /^มีี?$/.test(op) ? true : /ไม่|เลิก|หยุด/.test(op) ? false : null,
+      resp: Number.isFinite(resp) && resp > 0 ? resp : null,
       lat: Number(r.Latitude),
       lon: Number(r.Longitude),
     };
@@ -87,14 +97,14 @@
       const live = await fetchLive();
       if (!live.length) throw new Error('empty');
       rows = live.map(normalize);
-      setStatus('live', `ข้อมูลสดจาก ArcGIS · ${fmt(rows.length)} เหตุ · โหลดเมื่อ ${time}`);
+      setStatus('live', `ข้อมูลสดจาก ArcGIS · ${fmt(rows.length)} เหตุ · ${time}`);
     } catch (e) {
       try {
         rows = (await fetchFallback()).map(normalize);
-        setStatus('backup', `ใช้ไฟล์ข้อมูลสำรอง (เชื่อมต่อ ArcGIS ไม่ได้) · ${fmt(rows.length)} เหตุ`);
+        setStatus('backup', `ใช้ไฟล์ข้อมูลสำรอง · ${fmt(rows.length)} เหตุ`);
       } catch (e2) {
         rows = [];
-        setStatus('err', 'โหลดข้อมูลไม่สำเร็จ ลองกด "โหลดใหม่"');
+        setStatus('err', 'โหลดข้อมูลไม่สำเร็จ');
       }
     }
     $('refresh').classList.remove('spin');
@@ -111,6 +121,8 @@
     (opt.fy == null || r.fy === opt.fy));
   const countBy = (list, key) => d3.rollup(list.filter((r) => r[key] != null), (v) => v.length, (r) => r[key]);
   const sum = (list, k) => d3.sum(list, (r) => r[k]);
+  const median = (list) => d3.median(list.filter((r) => r.resp != null), (r) => r.resp);
+  const set = (patch) => { Object.assign(state, patch); render(); };
 
   // tooltip
   const tip = $('tip');
@@ -119,7 +131,8 @@
     for (const [c, name, val] of lines) {
       const r = el('div', 'r');
       if (c) { const s = el('span', 'sw'); s.style.background = c; r.append(s); }
-      r.append(el('span', null, name), el('b', null, val));
+      if (name) r.append(el('span', null, name));
+      r.append(el('b', null, val));
       tip.append(r);
     }
     tip.hidden = false;
@@ -130,86 +143,159 @@
     tip.style.left = x + 'px'; tip.style.top = y + 'px';
   }
   const hideTip = () => { tip.hidden = true; };
+  addEventListener('scroll', hideTip, { passive: true });
 
-  // ---------- filters ----------
-  function chip(label, pressed, onClick, color) {
-    const b = el('button', 'chip');
-    b.type = 'button';
-    b.setAttribute('aria-pressed', pressed ? 'true' : 'false');
-    if (color) { const s = el('span', 'sw'); s.style.background = color; b.append(s); }
-    b.append(document.createTextNode(label));
-    b.addEventListener('click', onClick);
-    return b;
-  }
-  const set = (patch) => { Object.assign(state, patch); render(); };
-  $('reset').addEventListener('click', () => set({ fy: 'all', q: 'all', type: 'all', estate: 'all' }));
+  // ---------- header controls ----------
+  $('fy-prev').addEventListener('click', () => {
+    const i = state.fy === 'all' ? fys.length : fys.indexOf(state.fy);
+    if (i > 0) set({ fy: fys[i - 1] });
+  });
+  $('fy-next').addEventListener('click', () => {
+    if (state.fy === 'all') return;
+    const i = fys.indexOf(state.fy);
+    set({ fy: i < fys.length - 1 ? fys[i + 1] : 'all' });
+  });
+  $('f-type').addEventListener('change', (e) => set({ type: e.target.value }));
   $('f-estate').addEventListener('change', (e) => set({ estate: e.target.value }));
+  $('reset').addEventListener('click', () => set({ fy: 'all', q: 'all', type: 'all', estate: 'all' }));
 
-  function drawFilters(fys, types) {
-    $('f-fy').replaceChildren(chip('ทั้งหมด', state.fy === 'all', () => set({ fy: 'all' })),
-      ...fys.map((y) => chip(y, state.fy === y, () => set({ fy: y }))));
-    $('f-q').replaceChildren(chip('ทั้งหมด', state.q === 'all', () => set({ q: 'all' })),
-      ...['1', '2', '3', '4'].map((q) => chip('Q' + q, state.q === q, () => set({ q }))));
-    $('f-type').replaceChildren(chip('ทั้งหมด', state.type === 'all', () => set({ type: 'all' })),
-      ...types.map((t) => chip(t, state.type === t, () => set({ type: t }), typeColor(t))));
-    $('reset').hidden = state.fy === 'all' && state.q === 'all' && state.type === 'all' && state.estate === 'all';
-    // estate dropdown: every estate in the data, A–Z, with its count for the other filters
-    const sel = $('f-estate');
-    const counts = countBy(filtered({ ignoreEstate: true }), 'estate');
+  // nav pills: smooth scroll + highlight the section in view
+  const navs = [...document.querySelectorAll('[data-nav]')];
+  navs.forEach((a) => a.addEventListener('click', (e) => {
+    e.preventDefault();
+    document.querySelector(a.getAttribute('href')).scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+  }));
+  if ('IntersectionObserver' in window) {
+    const io = new IntersectionObserver((ents) => {
+      ents.forEach((en) => { if (en.isIntersecting) navs.forEach((a) => a.classList.toggle('on', a.getAttribute('href') === '#' + en.target.id)); });
+    }, { rootMargin: '-45% 0px -50% 0px' });
+    ['overview', 'map-section', 'cases-section'].forEach((id) => io.observe($(id)));
+  }
+
+  function drawControls(types) {
+    $('fy-val').textContent = state.fy === 'all' ? 'ทุกปี' : state.fy;
+    $('fy-prev').disabled = state.fy === fys[0];
+    $('fy-next').disabled = state.fy === 'all';
+    const qs = $('f-q');
+    qs.replaceChildren(...['all', '1', '2', '3', '4'].map((q) => {
+      const b = el('button', 'qbtn'); b.type = 'button';
+      b.setAttribute('aria-pressed', state.q === q ? 'true' : 'false');
+      b.append(el('span', 'pick-k', q === 'all' ? 'ไตรมาส' : QLABEL[q]), el('span', 'pick-v', q === 'all' ? 'ทั้งปี' : 'Q' + q));
+      b.addEventListener('click', () => set({ q }));
+      return b;
+    }));
+    const ts = $('f-type');
+    const tc = countBy(filtered({ ignoreType: true }), 'type');
+    ts.replaceChildren(new Option('ทั้งหมด', 'all'), ...types.map((t) => new Option(`${t} (${fmt(tc.get(t) || 0)})`, t)));
+    ts.value = state.type;
+    ts.parentElement.classList.toggle('on', state.type !== 'all');
+    const es = $('f-estate');
+    const ec = countBy(filtered({ ignoreEstate: true }), 'estate');
     const names = [...new Set(rows.map((r) => r.estate).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'th'));
-    sel.replaceChildren(new Option(`ทุกนิคม (${fmt(names.length)} แห่ง)`, 'all'),
-      ...names.map((n) => new Option(`${n} (${fmt(counts.get(n) || 0)})`, n)));
-    sel.value = state.estate;
-    sel.classList.toggle('on', state.estate !== 'all');
+    es.replaceChildren(new Option(`ทุกนิคม (${fmt(names.length)} แห่ง)`, 'all'), ...names.map((n) => new Option(`${n} (${fmt(ec.get(n) || 0)})`, n)));
+    es.value = state.estate;
+    es.parentElement.classList.toggle('on', state.estate !== 'all');
+    $('reset').hidden = state.fy === 'all' && state.q === 'all' && state.type === 'all' && state.estate === 'all';
   }
 
   // ---------- charts ----------
-  function stacked(box, cats, series, getN, highlight) {
+  const ARROW_UP = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 11.5l7-7M5.5 4.5h6v6"/></svg>';
+  const ARROW_DN = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 4.5l7 7M11.5 5.5v6h-6"/></svg>';
+
+  /* Yearly column chart: grey for other years, teal for the selected year (charcoal when all
+     years are shown), and a dot under each column — red up / green down vs the year before. */
+  function yearBars(box, data, fmtV, unit) {
     box.replaceChildren();
-    const W = Math.max(280, box.clientWidth), H = 290, m = { t: 26, r: 4, b: 34, l: 36 };
-    const totals = cats.map((c) => d3.sum(series, (s) => getN(c, s)));
-    if (!d3.sum(totals)) { box.append(el('div', 'empty', 'ไม่มีเหตุในช่วงที่เลือก')); return; }
-    const y = d3.scaleLinear([0, Math.max(4, d3.max(totals))], [H - m.b, m.t]).nice();
-    const x = d3.scaleBand(cats, [m.l, W - m.r]).padding(0.28);
+    if (!data.length) return;
+    const W = Math.max(240, box.clientWidth), H = 150, top = 16, dotY = H - 26, base = dotY - 12;
+    const x = d3.scaleBand(data.map((d) => d.y), [0, W]).padding(0.16);
+    const max = d3.max(data, (d) => d.v) || 1;
+    const y = d3.scaleLinear([0, max], [base, top]);
     const svg = d3.select(box).append('svg').attr('width', '100%').attr('viewBox', `0 0 ${W} ${H}`);
-    svg.append('g').attr('transform', `translate(${m.l},0)`)
-      .call(d3.axisLeft(y).ticks(4).tickSize(-(W - m.l - m.r)).tickFormat(d3.format('d')))
-      .attr('font-size', null).attr('font-family', null)
-      .call((g) => g.select('.domain').remove());
-    const xa = svg.append('g').attr('transform', `translate(0,${H - m.b})`)
-      .call(d3.axisBottom(x).tickSize(0).tickPadding(8))
-      .attr('font-size', null).attr('font-family', null);
-    // thin x labels if they collide
-    const ticks = xa.selectAll('.tick text').nodes();
-    const widest = d3.max(ticks, (t) => t.getComputedTextLength()) || 0;
-    const step = Math.ceil((widest + 8) / x.step());
-    if (step > 1) ticks.forEach((t, i) => { if (i % step) t.remove(); });
-    const bw = Math.min(34, x.bandwidth());
-    cats.forEach((c, i) => {
-      let acc = 0;
-      const g = svg.append('g').attr('opacity', highlight && highlight !== c ? 0.35 : 1);
-      series.forEach((s) => {
-        const n = getN(c, s); if (!n) return;
-        g.append('rect').attr('x', x(c) + (x.bandwidth() - bw) / 2).attr('width', bw)
-          .attr('y', y(acc + n)).attr('height', Math.max(0, y(acc) - y(acc + n) - 1))
-          .attr('rx', 3).attr('fill', typeColor(s));
-        acc += n;
-      });
-      if (totals[i]) svg.append('text').attr('x', x(c) + x.bandwidth() / 2).attr('y', y(totals[i]) - 6)
-        .attr('text-anchor', 'middle').attr('fill', cv('--fg')).attr('font-size', 15).attr('font-weight', 700).attr('font-family', cv('--font')).text(totals[i]);
-      svg.append('rect').attr('x', x(c)).attr('width', x.bandwidth()).attr('y', m.t).attr('height', H - m.t - m.b)
-        .attr('fill', 'transparent')
-        .on('mousemove', (ev) => showTip(ev, `${c} · รวม ${totals[i]} ครั้ง`,
-          series.filter((s) => getN(c, s)).map((s) => [typeColor(s), s, fmt(getN(c, s))])))
+    data.forEach((d, i) => {
+      const sel = state.fy !== 'all' && d.y === state.fy;
+      const fill = state.fy === 'all' ? cv('--ink') : sel ? cv('--hi') : cv('--past');
+      const h = Math.max(d.v ? 2 : 0, base - y(d.v));
+      svg.append('rect').attr('x', x(d.y)).attr('y', base - h).attr('width', x.bandwidth()).attr('height', h).attr('fill', fill);
+      if (sel || (state.fy === 'all' && x.bandwidth() > 24)) {
+        svg.append('text').attr('x', x(d.y) + x.bandwidth() / 2).attr('y', base - h - 4).attr('text-anchor', 'middle')
+          .attr('font-size', 12).attr('font-weight', 600).attr('fill', cv('--fg')).text(fmtV(d.v));
+      }
+      const prev = i ? data[i - 1].v : null;
+      const dc = prev == null || d.v === prev ? cv('--past') : d.v > prev ? cv('--red') : cv('--green');
+      svg.append('circle').attr('cx', x(d.y) + x.bandwidth() / 2).attr('cy', dotY).attr('r', 4).attr('fill', dc);
+      svg.append('text').attr('x', x(d.y) + x.bandwidth() / 2).attr('y', H - 4).attr('text-anchor', 'middle')
+        .attr('font-size', 12.5).attr('fill', sel ? cv('--fg') : cv('--faint')).attr('font-weight', sel ? 700 : 400).text(d.y.slice(-2));
+      svg.append('rect').attr('x', x(d.y) - x.step() * x.paddingInner() / 2).attr('width', x.step()).attr('y', 0).attr('height', H).attr('fill', 'transparent')
+        .style('cursor', 'pointer')
+        .on('mousemove', (ev) => {
+          const lines = [[null, '', `${fmtV(d.v)} ${unit}`]];
+          if (prev != null) lines.push([dc, 'เทียบปีก่อน', `${d.v - prev > 0 ? '+' : ''}${fmtV(d.v - prev)}`]);
+          showTip(ev, `ปีงบประมาณ ${d.y}`, lines);
+        })
+        .on('mouseleave', hideTip)
+        .on('click', () => { hideTip(); set({ fy: state.fy === d.y ? 'all' : d.y }); });
+    });
+  }
+
+  /* metric block: title + trend arrow, big value, "previous year" line, yearly bars */
+  function metric(box, o) {
+    box.replaceChildren();
+    const head = el('div', 'm-head');
+    head.append(el('span', 'm-title', o.title));
+    let delta = null;
+    if (o.prev != null && o.cur != null) delta = o.cur - o.prev;
+    if (delta != null) {
+      const a = el('span', 'arrow ' + (delta > 0 ? 'up' : delta < 0 ? 'down' : 'flat'));
+      a.innerHTML = delta >= 0 ? ARROW_UP : ARROW_DN;
+      a.title = delta > 0 ? 'เพิ่มขึ้นจากปีก่อน' : delta < 0 ? 'ลดลงจากปีก่อน' : 'เท่ากับปีก่อน';
+      head.append(a);
+    }
+    const val = el('div', 'm-val');
+    val.append(el('b', null, o.cur == null ? '—' : o.fmt(o.cur)), document.createTextNode(o.unit + (o.extra || '')));
+    const pm = el('div', 'm-pm');
+    if (delta != null) {
+      const ch = o.prev ? delta / o.prev : null;
+      pm.append(document.createTextNode(`ปีงบ ${o.prevFy}: ${o.fmt(o.prev)} | `),
+        el('span', delta > 0 ? 'up' : delta < 0 ? 'down' : null, ch == null ? (delta > 0 ? `+${o.fmt(delta)}` : '—') : `${delta > 0 ? '+' : ''}${pct1(ch)}`));
+    } else {
+      pm.textContent = o.note || '';
+    }
+    const ch = el('div', 'm-chart');
+    box.append(head, val, pm, ch);
+    yearBars(ch, o.series, o.fmt, o.unit.trim());
+  }
+
+  /* monthly columns for the fiscal year order; dots compare with the same month a year earlier */
+  function monthBars(box, cur, prevMap, months) {
+    box.replaceChildren();
+    const W = Math.max(240, box.clientWidth), H = 170, top = 16, dotY = H - 26, base = dotY - 12;
+    const vals = months.map((m) => cur.get(m) || 0);
+    if (!d3.sum(vals)) { box.append(el('div', 'empty', 'ไม่มีเหตุในช่วงที่เลือก')); return; }
+    const x = d3.scaleBand(months, [0, W]).padding(0.16);
+    const y = d3.scaleLinear([0, d3.max(vals)], [base, top]);
+    const mx = d3.max(vals);
+    const svg = d3.select(box).append('svg').attr('width', '100%').attr('viewBox', `0 0 ${W} ${H}`);
+    months.forEach((m, i) => {
+      const v = vals[i], h = Math.max(v ? 2 : 0, base - y(v));
+      svg.append('rect').attr('x', x(m)).attr('y', base - h).attr('width', x.bandwidth()).attr('height', h).attr('fill', v === mx ? cv('--hi') : cv('--ink'));
+      if (v) svg.append('text').attr('x', x(m) + x.bandwidth() / 2).attr('y', base - h - 4).attr('text-anchor', 'middle').attr('font-size', 12).attr('font-weight', 600).attr('fill', cv('--fg')).text(v);
+      let dc = cv('--past'), pv = null;
+      if (prevMap) { pv = prevMap.get(m) || 0; dc = v === pv ? cv('--past') : v > pv ? cv('--red') : cv('--green'); }
+      svg.append('circle').attr('cx', x(m) + x.bandwidth() / 2).attr('cy', dotY).attr('r', 4).attr('fill', dc);
+      if (x.step() >= 30 || i % 2 === 0) svg.append('text').attr('x', x(m) + x.bandwidth() / 2).attr('y', H - 4).attr('text-anchor', 'middle').attr('font-size', 12).attr('fill', cv('--faint')).text(m);
+      svg.append('rect').attr('x', x(m) - x.step() * x.paddingInner() / 2).attr('width', x.step()).attr('y', 0).attr('height', H).attr('fill', 'transparent')
+        .on('mousemove', (ev) => showTip(ev, m, pv == null ? [[null, '', `${v} ครั้ง`]] : [[null, '', `${v} ครั้ง`], [dc, `ปีก่อน`, `${pv} ครั้ง`]]))
         .on('mouseleave', hideTip);
     });
   }
 
-  function hbars(box, items, total, opt = {}) {
+  /* horizontal bars: label at left, charcoal bar with value inside */
+  function hbars(box, items, opt = {}) {
     const max = d3.max(items, (d) => d.n) || 1;
-    const wrap = el('div', 'bars');
+    const wrap = el('div', 'hbars');
     for (const d of items) {
-      const row = el(opt.onClick ? 'button' : 'div', 'bar');
+      const row = el(opt.onClick ? 'button' : 'div', 'hb');
       if (opt.onClick) {
         row.type = 'button'; row.classList.add('click');
         row.addEventListener('click', () => opt.onClick(d));
@@ -217,31 +303,64 @@
       }
       const l = el('span', 'l', d.label); l.title = d.label;
       const t = el('span', 't'); const f = el('span', 'f');
-      f.style.width = (d.n / max * 100) + '%'; f.style.background = d.color || cv('--bar');
-      t.append(f);
-      const v = el('span', 'v', fmt(d.n));
-      if (total) v.append(el('small', null, pct(d.n / total)));
-      row.append(l, t, v); wrap.append(row);
+      const w = d.n / max;
+      const lab = el('span', 'v', fmt(d.n));
+      if (opt.total) lab.append(el('small', null, pct(d.n / opt.total)));
+      f.style.width = Math.max(2, w * 100) + '%';
+      if (d.color) f.style.background = d.color;
+      // label sits inside long bars, just past the end of short ones
+      if (w >= (opt.total ? 0.42 : 0.28)) f.append(lab); else { lab.classList.add('out'); }
+      t.append(f); if (lab.classList.contains('out')) t.append(lab);
+      row.append(l, t); wrap.append(row);
     }
     box.replaceChildren(items.length ? wrap : el('div', 'empty', 'ไม่มีเหตุในช่วงที่เลือก'));
   }
 
-  // ---------- sparkline (mini bars, one per fiscal year) ----------
-  function spark(box, data, color, unit) {
+  /* donut + legend (time of day) */
+  function donut(box, items, total) {
     box.replaceChildren();
-    if (!data.length || !d3.sum(data, (d) => d.v)) return;
-    const W = 160, H = 46, gap = 3;
-    const bw = Math.max(3, (W - gap * (data.length - 1)) / data.length);
-    const max = d3.max(data, (d) => d.v) || 1;
-    const svg = d3.select(box).append('svg').attr('viewBox', `0 0 ${W} ${H}`).attr('preserveAspectRatio', 'none');
-    data.forEach((d, i) => {
-      const h = Math.max(2, d.v / max * (H - 2));
-      const on = state.fy === 'all' ? i === data.length - 1 : d.y === state.fy;
-      svg.append('rect').attr('x', i * (bw + gap)).attr('y', H - h).attr('width', bw).attr('height', h).attr('rx', 2)
-        .attr('fill', color).attr('opacity', on ? 1 : 0.28)
-        .on('mousemove', (ev) => showTip(ev, `ปีงบประมาณ ${d.y}`, [[color, '', `${fmt(d.v)} ${unit}`]]))
+    if (!total) { box.append(el('div', 'empty', 'ไม่มีเหตุในช่วงที่เลือก')); return; }
+    const colors = [cv('--hi'), cv('--coral'), cv('--past')];
+    const wrap = el('div', 'donut');
+    const S = 150, R = 70, r = 46;
+    const svg = d3.select(wrap).append('svg').attr('viewBox', `0 0 ${S} ${S}`).attr('class', 'donut-svg');
+    const g = svg.append('g').attr('transform', `translate(${S / 2},${S / 2})`);
+    const arcs = d3.pie().sort(null).value((d) => d.n)(items);
+    const arc = d3.arc().innerRadius(r).outerRadius(R);
+    arcs.forEach((a, i) => {
+      g.append('path').attr('d', arc(a)).attr('fill', colors[i]).attr('stroke', '#fff').attr('stroke-width', 2)
+        .on('mousemove', (ev) => showTip(ev, a.data.label, [[colors[i], '', `${fmt(a.data.n)} ครั้ง · ${pct1(a.data.n / total)}`]]))
         .on('mouseleave', hideTip);
     });
+    g.append('text').attr('text-anchor', 'middle').attr('y', 4).attr('font-size', 24).attr('font-weight', 700).attr('fill', cv('--fg')).attr('font-family', cv('--font-num')).text(fmt(total));
+    g.append('text').attr('text-anchor', 'middle').attr('y', 24).attr('font-size', 13).attr('fill', cv('--faint')).text('ครั้ง');
+    const leg = el('div', 'donut-leg');
+    items.forEach((d, i) => {
+      const row = el('div', 'dl');
+      const sw = el('span', 'sw'); sw.style.background = colors[i];
+      const t = el('div'); t.append(el('div', 'dl-l', d.label), el('div', 'dl-v', `${fmt(d.n)} ครั้ง · ${pct1(d.n / total)}`));
+      row.append(sw, t); leg.append(row);
+    });
+    wrap.append(leg);
+    box.append(wrap);
+  }
+
+  /* small progress rings */
+  function rings(box, items) {
+    box.replaceChildren(...items.map((it) => {
+      const w = el('div', 'ring');
+      w.append(el('div', 'ring-t', it.title));
+      const svg = document.createElementNS(NS, 'svg'); svg.setAttribute('viewBox', '0 0 92 92');
+      const R = 36, C = 2 * Math.PI * R, p = it.den ? it.num / it.den : 0;
+      svg.innerHTML = `<circle cx="46" cy="46" r="${R}" fill="none" stroke="${cv('--past')}" stroke-width="10"/>` +
+        `<circle cx="46" cy="46" r="${R}" fill="none" stroke="${it.color}" stroke-width="10" stroke-dasharray="${C * p} ${C}" transform="rotate(-90 46 46)"/>`;
+      const t = document.createElementNS(NS, 'text');
+      t.setAttribute('x', '46'); t.setAttribute('y', '51'); t.setAttribute('text-anchor', 'middle'); t.setAttribute('font-size', '16'); t.setAttribute('font-weight', '700'); t.setAttribute('fill', cv('--fg'));
+      t.textContent = it.den ? pct1(p) : '—';
+      svg.append(t);
+      w.append(svg, el('div', 'ring-s', it.den ? `${fmt(it.num)} จาก ${fmt(it.den)} เหตุ` : 'ไม่มีข้อมูล'));
+      return w;
+    }));
   }
 
   // ---------- map ----------
@@ -249,7 +368,7 @@
   const bases = {};
   function initMap() {
     if (typeof L === 'undefined') { $('map').replaceChildren(el('div', 'empty', 'โหลดแผนที่ไม่ได้')); return; }
-    map = L.map('map', { scrollWheelZoom: false, attributionControl: true }).setView([13.2, 101.0], 8);
+    map = L.map('map', { scrollWheelZoom: false }).setView([13.2, 101.0], 8);
     bases.gray = L.layerGroup([
       L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', { maxZoom: 16, attribution: 'Esri, HERE, Garmin, © OpenStreetMap contributors' }),
       L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}', { maxZoom: 16 }),
@@ -264,21 +383,18 @@
     }));
   }
   let lastFitKey = '';
-  function drawMap(list) {
+  function drawMap(list, types) {
+    $('legend').replaceChildren(...types.map((t) => { const s = el('span'); const w = el('span', 'sw'); w.style.background = typeColor(t); s.append(w, document.createTextNode(t)); return s; }));
     if (!map) return;
     layer.clearLayers();
     const pts = list.filter((r) => Number.isFinite(r.lat) && Number.isFinite(r.lon) && r.lat > 5 && r.lat < 21 && r.lon > 97 && r.lon < 106);
     pts.sort((a, b) => (a.inj + a.dead) - (b.inj + b.dead));
     for (const r of pts) {
-      const c = typeColor(r.type);
-      const mk = L.circleMarker([r.lat, r.lon], { radius: 5 + Math.min(9, Math.sqrt(r.inj + r.dead * 3) * 2), color: '#fff', weight: 1.5, fillColor: c, fillOpacity: 0.85 });
+      const mk = L.circleMarker([r.lat, r.lon], { radius: 5 + Math.min(9, Math.sqrt(r.inj + r.dead * 3) * 2), color: '#fff', weight: 1.5, fillColor: typeColor(r.type), fillOpacity: 0.88 });
       const pop = el('div');
-      pop.append(el('div', 'pop-h', r.company || 'ไม่ระบุบริษัท'),
-        el('div', 'pop-m', `${r.type} · ${r.date} ${r.time}`),
-        el('div', 'pop-m', r.estate || ''),
-        el('div', null, r.cause),
-        el('div', 'pop-m', `บาดเจ็บ ${r.inj} · เสียชีวิต ${r.dead}`));
-      mk.bindPopup(pop, { maxWidth: 300 });
+      pop.append(el('div', 'pop-h', r.company || 'ไม่ระบุบริษัท'), el('div', 'pop-m', `${r.type} · ${r.date} ${r.time}`),
+        el('div', 'pop-m', r.estate || ''), el('div', null, r.cause), el('div', 'pop-m', `บาดเจ็บ ${r.inj} · เสียชีวิต ${r.dead}`));
+      mk.bindPopup(pop, { maxWidth: 320 });
       mk.addTo(layer);
     }
     $('map-note').textContent = `${fmt(pts.length)} จุดในช่วงที่เลือก · คลิกจุดเพื่อดูรายละเอียด · ขนาดตามจำนวนผู้บาดเจ็บและเสียชีวิต`;
@@ -296,7 +412,6 @@
     drawTable();
   }));
   $('search').addEventListener('input', (e) => { state.search = e.target.value.trim().toLowerCase(); drawTable(); });
-
   function drawTable() {
     const q = state.search;
     const list = filtered().filter((r) => !q || [r.company, r.estate, r.cause, r.type].join(' ').toLowerCase().includes(q));
@@ -306,16 +421,16 @@
       const c = typeof va === 'number' ? va - vb : String(va).localeCompare(String(vb), 'th');
       return (c || a.case - b.case) * dir;
     });
-    document.querySelectorAll('#tbl th').forEach((th) => {
+    document.querySelectorAll('#tbl th').forEach((th, i) => {
       const b = th.querySelector('button');
-      th.setAttribute('aria-sort', b && b.dataset.sort === k && th.textContent !== 'วันที่' ? (dir > 0 ? 'ascending' : 'descending') : 'none');
+      th.setAttribute('aria-sort', b && b.dataset.sort === k && i !== 1 ? (dir > 0 ? 'ascending' : 'descending') : 'none');
     });
     const frag = document.createDocumentFragment();
     for (const r of list) {
       const tr = el('tr');
       tr.append(el('td', null, String(r.case)), el('td', null, r.date));
-      const ev = el('td'); const p = el('span', 'pill'); p.style.setProperty('--pc', typeColor(r.type)); const s = el('span', 'sw');
-      p.append(s, document.createTextNode(r.type)); ev.append(p); tr.append(ev);
+      const ev = el('td'); const p = el('span', 'pill'); p.style.setProperty('--pc', typeColor(r.type));
+      p.append(el('span', 'sw'), document.createTextNode(r.type)); ev.append(p); tr.append(ev);
       tr.append(el('td', 'hide-sm', r.company), el('td', null, r.estate || ''), el('td', 'hide-sm cause', r.cause),
         el('td', 'n' + (r.inj ? ' inj-pos' : ''), String(r.inj)), el('td', 'n' + (r.dead ? ' dead-pos' : ''), String(r.dead)));
       frag.append(tr);
@@ -327,94 +442,90 @@
   // ---------- render ----------
   function render() {
     hideTip();
-    const fys = [...new Set(rows.map((r) => r.fy).filter(Boolean))].sort();
+    fys = [...new Set(rows.map((r) => r.fy).filter(Boolean))].sort();
     const present = new Set(rows.map((r) => r.type));
     const types = TYPES.filter((t) => present.has(t)).concat([...present].filter((t) => !TYPES.includes(t)));
     if (state.fy !== 'all' && !fys.includes(state.fy)) state.fy = 'all';
     if (state.estate !== 'all' && !rows.some((r) => r.estate === state.estate)) state.estate = 'all';
-    drawFilters(fys, types);
+    if (state.type !== 'all' && !present.has(state.type)) state.type = 'all';
+    drawControls(types);
 
     const cur = filtered();
-    const n = cur.length, inj = sum(cur, 'inj'), dead = sum(cur, 'dead');
-    const fire = cur.filter((r) => r.type === FIRE).length;
-    $('k-n').textContent = fmt(n);
-    $('k-inj').textContent = fmt(inj);
-    $('k-dead').textContent = fmt(dead);
-    $('k-fire').textContent = state.type === 'all' || state.type === FIRE ? fmt(fire) : '0';
     const prevFy = state.fy !== 'all' ? String(Number(state.fy) - 1) : null;
     const prev = prevFy && fys.includes(prevFy) ? filtered({ ignoreFy: true, fy: prevFy }) : null;
-    const sub = (id, cnow, cprev) => {
-      const box = $(id); box.replaceChildren();
-      if (!prev) { box.textContent = state.fy === 'all' ? (fys.length ? `ปีงบประมาณ ${fys[0]}–${fys[fys.length - 1]}` : '') : 'ไม่มีข้อมูลปีก่อนหน้า'; return; }
-      const d = cnow - cprev;
-      const tag = el('span', d > 0 ? 'up' : d < 0 ? 'down' : null, d > 0 ? `▲ ${fmt(d)}` : d < 0 ? `▼ ${fmt(-d)}` : 'เท่าเดิม');
-      box.append(tag, document.createTextNode(` จากปีงบ ${prevFy} (${fmt(cprev)})`));
-    };
-    sub('k-n-sub', n, prev ? prev.length : 0);
-    sub('k-inj-sub', inj, prev ? sum(prev, 'inj') : 0);
-    sub('k-dead-sub', dead, prev ? sum(prev, 'dead') : 0);
-    // sparklines: yearly trend under the other filters, selected year highlighted
     const yAll = filtered({ ignoreFy: true });
     const byFy = (f) => fys.map((y) => ({ y, v: f(yAll.filter((r) => r.fy === y)) }));
-    spark($('s-n'), byFy((l) => l.length), cv('--brand'), 'ครั้ง');
-    spark($('s-inj'), byFy((l) => sum(l, 'inj')), cv('--warn'), 'ราย');
-    spark($('s-dead'), byFy((l) => sum(l, 'dead')), cv('--bad'), 'ราย');
-    spark($('s-fire'), state.type === 'all' || state.type === FIRE ? byFy((l) => l.filter((r) => r.type === FIRE).length) : [], cv('--t-fire'), 'ครั้ง');
-    $('k-fire-sub').textContent = n && (state.type === 'all' || state.type === FIRE) ? `${pct(fire / n)} ของเหตุทั้งหมด` : '';
+    const n = cur.length, inj = sum(cur, 'inj'), dead = sum(cur, 'dead');
 
-    // takeaway
+    // period + takeaway
+    const fyRange = fys.length ? `${fys[0]}–${fys[fys.length - 1]}` : '';
+    let period = state.fy === 'all' ? `ปีงบประมาณ ${fyRange}` : `ปีงบประมาณ ${state.fy} (1 ต.ค. ${Number(state.fy) - 1} – 30 ก.ย. ${state.fy})`;
+    if (state.q !== 'all') period = (state.fy === 'all' ? `ปีงบประมาณ ${fyRange}` : `ปีงบประมาณ ${state.fy}`) + ` · ไตรมาส ${state.q} (${QLABEL[state.q]})`;
+    $('period').textContent = period;
     const take = $('take'); take.replaceChildren();
-    const period = (state.fy === 'all' ? (fys.length ? `ปีงบประมาณ ${fys[0]}–${fys[fys.length - 1]}` : '') : `ปีงบประมาณ ${state.fy}`) + (state.q === 'all' ? '' : ` ไตรมาส ${state.q}`) + (state.estate === 'all' ? '' : ` ที่นิคม${state.estate}`);
     const B = (t) => el('b', null, t), T = (t) => document.createTextNode(t);
     if (!rows.length) take.append(T('ยังไม่มีข้อมูล'));
-    else if (!n) take.append(T(`ไม่พบเหตุใน${period}`));
+    else if (!n) take.append(T('ไม่พบเหตุในช่วงที่เลือก'));
     else {
-      take.append(T(`${period} เกิดเหตุ `), B(fmt(n)), T(' ครั้ง'));
+      if (state.estate !== 'all') take.append(T(`นิคม${state.estate} `));
+      if (state.type !== 'all') take.append(T(`เหตุ${state.type} `));
+      take.append(T('เกิดเหตุ '), B(fmt(n)), T(' ครั้ง'));
       if (state.type === 'all') {
         const top = [...countBy(cur, 'type')].sort((a, b) => b[1] - a[1])[0];
         if (top) take.append(T(` ส่วนใหญ่เป็น${top[0]} `), B(fmt(top[1])), T(' ครั้ง'));
       }
-      const te = state.estate === 'all' && [...countBy(cur, 'estate')].sort((a, b) => b[1] - a[1])[0];
-      if (te) take.append(T(` เกิดบ่อยที่สุดที่${te[0]} `), B(fmt(te[1])), T(' ครั้ง'));
-      take.append(T(dead ? ' มีผู้เสียชีวิต ' : ' ไม่มีผู้เสียชีวิต'));
-      if (dead) take.append(B(fmt(dead)), T(' ราย'));
+      take.append(T(' · บาดเจ็บ '), B(fmt(inj)), T(' ราย เสียชีวิต '), B(fmt(dead)), T(' ราย'));
     }
 
-    // year + month
-    const shown = state.type === 'all' ? types : [state.type];
-    const yl = filtered({ ignoreFy: true });
-    const ym = d3.rollup(yl, (v) => v.length, (r) => r.fy, (r) => r.type);
-    stacked($('ch-year'), fys, shown, (c, s) => ym.get(c)?.get(s) || 0, state.fy === 'all' ? null : state.fy);
-    const mm = d3.rollup(cur.filter((r) => r.month), (v) => v.length, (r) => r.month, (r) => r.type);
-    const months = state.q === 'all' ? MONTHS : MONTHS.slice((Number(state.q) - 1) * 3, Number(state.q) * 3);
-    stacked($('ch-month'), months, shown, (c, s) => mm.get(c)?.get(s) || 0, null);
-    $('month-note').textContent = (state.fy === 'all' ? 'รวมทุกปีงบประมาณ' : `ปีงบประมาณ ${state.fy}`) + ' · ปีงบประมาณเริ่มเดือนตุลาคม';
-
-    // breakdowns
-    const sc = countBy(cur, 'slot');
-    hbars($('ch-slot'), SLOTS.map((s) => ({ label: s, n: sc.get(s) || 0 })), n);
-    const lc = countBy(cur, 'line');
-    hbars($('ch-line'), ['1', '2', '3'].map((l) => ({ label: 'ปก.' + l, n: lc.get(l) || 0 })), n);
-    hbars($('ch-ftype'), [...countBy(cur, 'ftype')].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, 6)
-      .map(([k, v]) => ({ label: 'ประเภท ' + k, n: v })));
-    const byEst = d3.group(filtered({ ignoreEstate: true }).filter((r) => r.estate), (r) => r.estate);
-    hbars($('ch-estate'), [...byEst].map(([k, v]) => {
-      const dom = [...d3.rollup(v, (x) => x.length, (r) => r.type)].sort((a, b) => b[1] - a[1])[0][0];
-      return { label: k, n: v.length, color: typeColor(dom) };
-    }).sort((a, b) => b.n - a.n || a.label.localeCompare(b.label, 'th')), 0, {
+    const allNote = `รวมปีงบประมาณ ${fyRange} · กราฟแสดงรายปี`;
+    // column 1
+    metric($('m-n'), { title: 'จำนวนเหตุ', cur: n, prev: prev ? prev.length : null, prevFy, unit: ' ครั้ง', fmt, note: allNote, series: byFy((l) => l.length) });
+    const tc = countBy(cur, 'type');
+    hbars($('ch-type'), types.map((t) => ({ label: t, n: tc.get(t) || 0, color: state.type === 'all' || state.type === t ? null : cv('--past') })).filter((d) => d.n), { total: n });
+    const byEst = d3.rollup(filtered({ ignoreEstate: true }).filter((r) => r.estate), (v) => v.length, (r) => r.estate);
+    hbars($('ch-estate'), [...byEst].map(([k, v]) => ({ label: k, n: v })).sort((a, b) => b.n - a.n || a.label.localeCompare(b.label, 'th')), {
       selected: state.estate === 'all' ? null : state.estate,
       onClick: (d) => set({ estate: state.estate === d.label ? 'all' : d.label }),
     });
-    $('estate-note').textContent = state.estate === 'all'
-      ? 'เรียงจากมากไปน้อย สีบอกประเภทเหตุที่พบมากที่สุด คลิกชื่อนิคมเพื่อกรอง'
-      : `กำลังกรองเฉพาะ${state.estate} คลิกอีกครั้งเพื่อดูทุกนิคม`;
 
-    drawMap(cur);
+    // column 2
+    metric($('m-inj'), { title: 'ผู้บาดเจ็บ', cur: inj, prev: prev ? sum(prev, 'inj') : null, prevFy, unit: ' ราย', fmt, note: allNote, series: byFy((l) => sum(l, 'inj')) });
+    metric($('m-dead'), { title: 'ผู้เสียชีวิต', cur: dead, prev: prev ? sum(prev, 'dead') : null, prevFy, unit: ' ราย', fmt, note: allNote, series: byFy((l) => sum(l, 'dead')) });
+    const opKnown = cur.filter((r) => r.operating != null);
+    rings($('rings'), [
+      { title: 'มีผู้บาดเจ็บ', num: cur.filter((r) => r.inj > 0).length, den: n, color: cv('--ink') },
+      { title: 'มีผู้เสียชีวิต', num: cur.filter((r) => r.dead > 0).length, den: n, color: cv('--red') },
+      { title: 'ขณะประกอบกิจการ', num: opKnown.filter((r) => r.operating).length, den: opKnown.length, color: cv('--hi') },
+    ]);
+
+    // column 3
+    const mc = countBy(cur, 'month');
+    const prevMc = prev ? countBy(prev, 'month') : null;
+    const months = state.q === 'all' ? MONTHS : MONTHS.slice((Number(state.q) - 1) * 3, Number(state.q) * 3);
+    monthBars($('ch-month'), mc, prevMc, months);
+    $('month-hint').textContent = prevMc ? `จุดเทียบเดือนเดียวกันปีงบ ${prevFy}` : 'แท่งสีฟ้าเขียวคือเดือนที่เกิดเหตุมากที่สุด';
+    const sc = countBy(cur, 'slot');
+    donut($('ch-slot'), SLOTS.map((s) => ({ label: s, n: sc.get(s) || 0 })), d3.sum(SLOTS, (s) => sc.get(s) || 0));
+    const lc = countBy(cur, 'line');
+    hbars($('ch-line'), ['1', '2', '3'].map((l) => ({ label: 'ปก.' + l, n: lc.get(l) || 0 })), { total: n });
+
+    // column 4
+    const fireOn = state.type === 'all' || state.type === FIRE;
+    const fireOf = (l) => l.filter((r) => r.type === FIRE).length;
+    metric($('m-fire'), { title: 'เพลิงไหม้', cur: fireOn ? fireOf(cur) : 0, prev: prev && fireOn ? fireOf(prev) : null, prevFy, unit: ' ครั้ง',
+      extra: fireOn && n ? ` · ${pct(fireOf(cur) / n)} ของเหตุทั้งหมด` : '', fmt, note: allNote, series: fireOn ? byFy(fireOf) : [] });
+    const mr = median(cur), pr = prev ? median(prev) : null;
+    metric($('m-resp'), { title: 'เวลาระงับเหตุ (ค่ามัธยฐาน)', cur: mr ?? null, prev: pr ?? null, prevFy, unit: ' นาที',
+      extra: ` · จาก ${fmt(cur.filter((r) => r.resp != null).length)} เหตุที่มีข้อมูล`, fmt: (v) => fmt1(v).replace(/\.0$/, ''), note: allNote,
+      series: byFy((l) => median(l) || 0) });
+    hbars($('ch-ftype'), [...countBy(cur, 'ftype')].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, 6).map(([k, v]) => ({ label: 'ประเภท ' + k, n: v })));
+
+    drawMap(cur, types);
     drawTable();
   }
 
-  let rt;
-  addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => rows.length && render(), 150); });
+  let rt, lastW = innerWidth;
+  addEventListener('resize', () => { if (innerWidth === lastW) return; lastW = innerWidth; clearTimeout(rt); rt = setTimeout(() => rows.length && render(), 150); });
 
   initMap();
   load();
