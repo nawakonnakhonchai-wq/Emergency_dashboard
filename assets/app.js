@@ -26,6 +26,7 @@
 
   const state = { fy: 'all', q: 'all', type: 'all', estate: 'all', sortKey: 'case', sortDir: -1, search: '' };
   let rows = [];
+  let currentTypes = [];
   let fys = [];
 
   // ---------- data ----------
@@ -363,8 +364,49 @@
     }));
   }
 
+  const validPt = (r) => Number.isFinite(r.lat) && Number.isFinite(r.lon) && r.lat > 5 && r.lat < 21 && r.lon > 97 && r.lon < 106;
+  const PIN = '<svg class="pin" viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><path d="M12 2a7 7 0 0 0-7 7c0 5.2 7 13 7 13s7-7.8 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z"/></svg>';
+
+  /* table row → scroll to the map, fly to the incident, open its popup, ring it */
+  function showOnMap(r) {
+    focusCase = r.case;
+    document.querySelectorAll('#tbody tr.focus').forEach((t) => t.classList.remove('focus'));
+    const row = [...document.querySelectorAll('#tbody tr')].find((t) => t.dataset.case === String(r.case));
+    if (row) row.classList.add('focus');
+    if (!map || !validPt(r)) { showToast(`Case ${r.case} ไม่มีพิกัดในข้อมูล จึงแสดงบนแผนที่ไม่ได้`); return; }
+    const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    $('map-section').scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+    ringLayer.clearLayers();
+    const ring = L.circleMarker([r.lat, r.lon], { radius: 22, color: cv('--hi'), weight: 3, fill: false, className: 'focus-ring', interactive: false });
+    ring.addTo(ringLayer);
+    const mk = markers.get(r.case);
+    const go = () => {
+      map.flyTo([r.lat, r.lon], Math.max(map.getZoom(), 15), { duration: reduce ? 0 : 1.2 });
+      map.once('moveend', () => { if (mk) { mk.bringToFront(); mk.openPopup(); } });
+    };
+    setTimeout(go, reduce ? 0 : 350);
+    $('map-focus').hidden = false;
+    $('map-focus-text').textContent = `Case ${r.case} · ${r.company || 'ไม่ระบุบริษัท'} · ${r.date}`;
+  }
+  function clearFocus() {
+    focusCase = null;
+    if (ringLayer) ringLayer.clearLayers();
+    if (map) map.closePopup();
+    $('map-focus').hidden = true;
+    document.querySelectorAll('#tbody tr.focus').forEach((t) => t.classList.remove('focus'));
+    lastFitKey = '';
+    drawMap(filtered(), currentTypes);
+  }
+  let toastT;
+  function showToast(msg) {
+    const t = $('toast'); t.textContent = msg; t.hidden = false;
+    clearTimeout(toastT); toastT = setTimeout(() => { t.hidden = true; }, 3500);
+  }
+
   // ---------- map ----------
-  let map, layer;
+  let map, layer, ringLayer;
+  let markers = new Map();
+  let focusCase = null;
   const bases = {};
   function initMap() {
     if (typeof L === 'undefined') { $('map').replaceChildren(el('div', 'empty', 'โหลดแผนที่ไม่ได้')); return; }
@@ -376,6 +418,7 @@
     bases.imagery = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 18, attribution: 'Esri, Maxar, Earthstar Geographics' });
     bases.gray.addTo(map);
     layer = L.layerGroup().addTo(map);
+    ringLayer = L.layerGroup().addTo(map);
     document.querySelectorAll('#basemap .seg-btn').forEach((b) => b.addEventListener('click', () => {
       Object.values(bases).forEach((l) => map.removeLayer(l));
       bases[b.dataset.base].addTo(map);
@@ -387,7 +430,8 @@
     $('legend').replaceChildren(...types.map((t) => { const s = el('span'); const w = el('span', 'sw'); w.style.background = typeColor(t); s.append(w, document.createTextNode(t)); return s; }));
     if (!map) return;
     layer.clearLayers();
-    const pts = list.filter((r) => Number.isFinite(r.lat) && Number.isFinite(r.lon) && r.lat > 5 && r.lat < 21 && r.lon > 97 && r.lon < 106);
+    markers = new Map();
+    const pts = list.filter(validPt);
     pts.sort((a, b) => (a.inj + a.dead) - (b.inj + b.dead));
     for (const r of pts) {
       const mk = L.circleMarker([r.lat, r.lon], { radius: 5 + Math.min(9, Math.sqrt(r.inj + r.dead * 3) * 2), color: '#fff', weight: 1.5, fillColor: typeColor(r.type), fillOpacity: 0.88 });
@@ -396,7 +440,9 @@
         el('div', 'pop-m', r.estate || ''), el('div', null, r.cause), el('div', 'pop-m', `บาดเจ็บ ${r.inj} · เสียชีวิต ${r.dead}`));
       mk.bindPopup(pop, { maxWidth: 320 });
       mk.addTo(layer);
+      markers.set(r.case, mk);
     }
+    if (focusCase != null && !markers.has(focusCase)) { focusCase = null; ringLayer.clearLayers(); $('map-focus').hidden = true; }
     $('map-note').textContent = `${fmt(pts.length)} จุดในช่วงที่เลือก · คลิกจุดเพื่อดูรายละเอียด · ขนาดตามจำนวนผู้บาดเจ็บและเสียชีวิต`;
     const key = [state.fy, state.q, state.type, state.estate].join('|');
     if (pts.length && key !== lastFitKey) {
@@ -428,7 +474,17 @@
     const frag = document.createDocumentFragment();
     for (const r of list) {
       const tr = el('tr');
-      tr.append(el('td', null, String(r.case)), el('td', null, r.date));
+      const hasPt = validPt(r);
+      tr.tabIndex = 0;
+      tr.dataset.case = String(r.case);
+      tr.className = 'row' + (hasPt ? '' : ' nopt') + (r.case === focusCase ? ' focus' : '');
+      tr.title = hasPt ? 'คลิกเพื่อดูจุดเกิดเหตุบนแผนที่' : 'เหตุนี้ไม่มีพิกัดในข้อมูล';
+      tr.addEventListener('click', () => showOnMap(r));
+      tr.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); showOnMap(r); } });
+      const c0 = el('td', 'case');
+      if (hasPt) c0.innerHTML = PIN;
+      c0.append(document.createTextNode(String(r.case)));
+      tr.append(c0, el('td', null, r.date));
       const ev = el('td'); const p = el('span', 'pill'); p.style.setProperty('--pc', typeColor(r.type));
       p.append(el('span', 'sw'), document.createTextNode(r.type)); ev.append(p); tr.append(ev);
       tr.append(el('td', 'hide-sm', r.company), el('td', null, r.estate || ''), el('td', 'hide-sm cause', r.cause),
@@ -436,7 +492,7 @@
       frag.append(tr);
     }
     $('tbody').replaceChildren(frag);
-    $('cases-note').textContent = `แสดง ${fmt(list.length)} รายการ · คลิกหัวตารางเพื่อเรียงลำดับ`;
+    $('cases-note').textContent = `แสดง ${fmt(list.length)} รายการ · คลิกแถวเพื่อดูจุดเกิดเหตุบนแผนที่ · คลิกหัวตารางเพื่อเรียงลำดับ`;
   }
 
   // ---------- render ----------
@@ -520,6 +576,7 @@
       series: byFy((l) => median(l) || 0) });
     hbars($('ch-ftype'), [...countBy(cur, 'ftype')].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, 6).map(([k, v]) => ({ label: 'ประเภท ' + k, n: v })));
 
+    currentTypes = types;
     drawMap(cur, types);
     drawTable();
   }
@@ -527,6 +584,13 @@
   let rt, lastW = innerWidth;
   addEventListener('resize', () => { if (innerWidth === lastW) return; lastW = innerWidth; clearTimeout(rt); rt = setTimeout(() => rows.length && render(), 150); });
 
+  $('map-focus-clear').addEventListener('click', clearFocus);
+  $('map-focus-back').addEventListener('click', () => {
+    const row = document.querySelector('#tbody tr.focus');
+    if (!row) return;
+    row.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'center' });
+    row.focus({ preventScroll: true });
+  });
   initMap();
   load();
 })();

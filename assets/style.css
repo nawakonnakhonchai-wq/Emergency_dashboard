@@ -190,6 +190,26 @@ svg text { font-family: var(--font); }
 .table tbody tr:nth-child(even) td { background: #fafafb; }
 .table tbody tr:hover td { background: #eef7f6; }
 .table .n { text-align: right; }
+.table tr.row { cursor: pointer; }
+.table tr.row:focus-visible { outline: 2px solid var(--hi); outline-offset: -2px; }
+.table tr.focus td, .table tr.focus:hover td { background: #dff3f1; }
+.table tr.focus td:first-child { box-shadow: inset 4px 0 0 var(--hi); }
+.table td.case { white-space: nowrap; }
+.table .pin { color: var(--hi); vertical-align: -2px; margin-right: 4px; }
+.table tr.nopt { cursor: default; }
+.map-wrap { position: relative; }
+.map-focus { position: absolute; z-index: 500; left: 12px; right: 12px; bottom: 12px; display: flex; align-items: center; gap: 12px; justify-content: space-between;
+  background: #111; color: #fff; border-radius: 12px; padding: 8px 8px 8px 14px; font-size: 15px; box-shadow: 0 8px 24px rgba(0, 0, 0, .25); }
+.map-focus > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mf-btns { display: flex; gap: 6px; flex: none; }
+.map-focus #map-focus-back { background: #333; color: #fff; }
+.map-focus button { flex: none; border: 0; border-radius: 999px; background: #fff; color: #111; padding: 4px 14px; font-size: 14.5px; font-weight: 600; cursor: pointer; }
+.map-focus button:focus-visible { outline: 2px solid var(--hi); outline-offset: 2px; }
+.focus-ring { animation: ring 1.6s ease-out infinite; transform-origin: center; transform-box: fill-box; }
+@keyframes ring { 0% { stroke-opacity: 1; transform: scale(.6); } 100% { stroke-opacity: 0; transform: scale(1.6); } }
+@media (prefers-reduced-motion: reduce) { .focus-ring { animation: none; } }
+.toast { position: fixed; z-index: 3000; left: 50%; bottom: 24px; transform: translateX(-50%); background: #111; color: #fff; border-radius: 12px;
+  padding: 10px 16px; font-size: 15px; box-shadow: 0 10px 30px rgba(0, 0, 0, .3); max-width: calc(100% - 32px); }
 .table td.cause { min-width: 18rem; max-width: 34rem; color: #33363b; }
 .table td.dead-pos { color: var(--red); font-weight: 700; }
 .table td.inj-pos { color: #c27a0e; font-weight: 700; }

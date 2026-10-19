@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Prompt:wght@500;600;700&family=Sarabun:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
-  <link rel="stylesheet" href="assets/style.css?v=6">
+  <link rel="stylesheet" href="assets/style.css?v=7">
 </head>
 <body>
   <header class="top">
@@ -120,7 +120,14 @@
       </div>
       <div class="legend" id="legend"></div>
       <p class="note" id="map-note">คลิกจุดเพื่อดูรายละเอียด</p>
-      <div id="map" role="region" aria-label="แผนที่จุดเกิดเหตุ"></div>
+      <div class="map-wrap">
+        <div id="map" role="region" aria-label="แผนที่จุดเกิดเหตุ"></div>
+        <div class="map-focus" id="map-focus" hidden>
+          <span id="map-focus-text"></span>
+          <span class="mf-btns"><button type="button" id="map-focus-back">กลับไปที่ตาราง</button>
+          <button type="button" id="map-focus-clear">ดูทุกจุด</button></span>
+        </div>
+      </div>
     </section>
 
     <section class="card wide" id="cases-section">
@@ -156,9 +163,10 @@
   </main>
 
   <div class="tip" id="tip" hidden></div>
+  <div class="toast" id="toast" role="status" hidden></div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
-  <script src="assets/app.js?v=6"></script>
+  <script src="assets/app.js?v=7"></script>
 </body>
 </html>
