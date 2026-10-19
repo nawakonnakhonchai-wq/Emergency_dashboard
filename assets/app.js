@@ -81,6 +81,7 @@
   }
   async function load() {
     setStatus('', 'กำลังโหลดข้อมูล…');
+    $('refresh').classList.add('spin');
     const time = new Intl.DateTimeFormat('th-TH', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date());
     try {
       const live = await fetchLive();
@@ -96,6 +97,7 @@
         setStatus('err', 'โหลดข้อมูลไม่สำเร็จ ลองกด "โหลดใหม่"');
       }
     }
+    $('refresh').classList.remove('spin');
     render();
   }
   $('refresh').addEventListener('click', load);
@@ -190,7 +192,7 @@
         const n = getN(c, s); if (!n) return;
         g.append('rect').attr('x', x(c) + (x.bandwidth() - bw) / 2).attr('width', bw)
           .attr('y', y(acc + n)).attr('height', Math.max(0, y(acc) - y(acc + n) - 1))
-          .attr('rx', 2).attr('fill', typeColor(s));
+          .attr('rx', 3).attr('fill', typeColor(s));
         acc += n;
       });
       if (totals[i]) svg.append('text').attr('x', x(c) + x.bandwidth() / 2).attr('y', y(totals[i]) - 6)
@@ -224,6 +226,24 @@
     box.replaceChildren(items.length ? wrap : el('div', 'empty', 'ไม่มีเหตุในช่วงที่เลือก'));
   }
 
+  // ---------- sparkline (mini bars, one per fiscal year) ----------
+  function spark(box, data, color, unit) {
+    box.replaceChildren();
+    if (!data.length || !d3.sum(data, (d) => d.v)) return;
+    const W = 160, H = 46, gap = 3;
+    const bw = Math.max(3, (W - gap * (data.length - 1)) / data.length);
+    const max = d3.max(data, (d) => d.v) || 1;
+    const svg = d3.select(box).append('svg').attr('viewBox', `0 0 ${W} ${H}`).attr('preserveAspectRatio', 'none');
+    data.forEach((d, i) => {
+      const h = Math.max(2, d.v / max * (H - 2));
+      const on = state.fy === 'all' ? i === data.length - 1 : d.y === state.fy;
+      svg.append('rect').attr('x', i * (bw + gap)).attr('y', H - h).attr('width', bw).attr('height', h).attr('rx', 2)
+        .attr('fill', color).attr('opacity', on ? 1 : 0.28)
+        .on('mousemove', (ev) => showTip(ev, `ปีงบประมาณ ${d.y}`, [[color, '', `${fmt(d.v)} ${unit}`]]))
+        .on('mouseleave', hideTip);
+    });
+  }
+
   // ---------- map ----------
   let map, layer;
   const bases = {};
@@ -237,10 +257,10 @@
     bases.imagery = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 18, attribution: 'Esri, Maxar, Earthstar Geographics' });
     bases.gray.addTo(map);
     layer = L.layerGroup().addTo(map);
-    document.querySelectorAll('#basemap .chip').forEach((b) => b.addEventListener('click', () => {
+    document.querySelectorAll('#basemap .seg-btn').forEach((b) => b.addEventListener('click', () => {
       Object.values(bases).forEach((l) => map.removeLayer(l));
       bases[b.dataset.base].addTo(map);
-      document.querySelectorAll('#basemap .chip').forEach((o) => o.setAttribute('aria-pressed', o === b ? 'true' : 'false'));
+      document.querySelectorAll('#basemap .seg-btn').forEach((o) => o.setAttribute('aria-pressed', o === b ? 'true' : 'false'));
     }));
   }
   let lastFitKey = '';
@@ -294,7 +314,7 @@
     for (const r of list) {
       const tr = el('tr');
       tr.append(el('td', null, String(r.case)), el('td', null, r.date));
-      const ev = el('td'); const p = el('span', 'pill'); const s = el('span', 'sw'); s.style.background = typeColor(r.type);
+      const ev = el('td'); const p = el('span', 'pill'); p.style.setProperty('--pc', typeColor(r.type)); const s = el('span', 'sw');
       p.append(s, document.createTextNode(r.type)); ev.append(p); tr.append(ev);
       tr.append(el('td', 'hide-sm', r.company), el('td', null, r.estate || ''), el('td', 'hide-sm cause', r.cause),
         el('td', 'n' + (r.inj ? ' inj-pos' : ''), String(r.inj)), el('td', 'n' + (r.dead ? ' dead-pos' : ''), String(r.dead)));
@@ -323,14 +343,23 @@
     $('k-fire').textContent = state.type === 'all' || state.type === FIRE ? fmt(fire) : '0';
     const prevFy = state.fy !== 'all' ? String(Number(state.fy) - 1) : null;
     const prev = prevFy && fys.includes(prevFy) ? filtered({ ignoreFy: true, fy: prevFy }) : null;
-    const sub = (cnow, cprev, label) => {
-      if (!prev) return state.fy === 'all' ? (fys.length ? `ปีงบประมาณ ${fys[0]}–${fys[fys.length - 1]}` : '') : '';
+    const sub = (id, cnow, cprev) => {
+      const box = $(id); box.replaceChildren();
+      if (!prev) { box.textContent = state.fy === 'all' ? (fys.length ? `ปีงบประมาณ ${fys[0]}–${fys[fys.length - 1]}` : '') : 'ไม่มีข้อมูลปีก่อนหน้า'; return; }
       const d = cnow - cprev;
-      return `${label} ปีงบ ${prevFy}: ${fmt(cprev)} (${d > 0 ? '+' : ''}${fmt(d)})`;
+      const tag = el('span', d > 0 ? 'up' : d < 0 ? 'down' : null, d > 0 ? `▲ ${fmt(d)}` : d < 0 ? `▼ ${fmt(-d)}` : 'เท่าเดิม');
+      box.append(tag, document.createTextNode(` จากปีงบ ${prevFy} (${fmt(cprev)})`));
     };
-    $('k-n-sub').textContent = sub(n, prev ? prev.length : 0, 'เทียบ');
-    $('k-inj-sub').textContent = sub(inj, prev ? sum(prev, 'inj') : 0, 'เทียบ');
-    $('k-dead-sub').textContent = sub(dead, prev ? sum(prev, 'dead') : 0, 'เทียบ');
+    sub('k-n-sub', n, prev ? prev.length : 0);
+    sub('k-inj-sub', inj, prev ? sum(prev, 'inj') : 0);
+    sub('k-dead-sub', dead, prev ? sum(prev, 'dead') : 0);
+    // sparklines: yearly trend under the other filters, selected year highlighted
+    const yAll = filtered({ ignoreFy: true });
+    const byFy = (f) => fys.map((y) => ({ y, v: f(yAll.filter((r) => r.fy === y)) }));
+    spark($('s-n'), byFy((l) => l.length), cv('--brand'), 'ครั้ง');
+    spark($('s-inj'), byFy((l) => sum(l, 'inj')), cv('--warn'), 'ราย');
+    spark($('s-dead'), byFy((l) => sum(l, 'dead')), cv('--bad'), 'ราย');
+    spark($('s-fire'), state.type === 'all' || state.type === FIRE ? byFy((l) => l.filter((r) => r.type === FIRE).length) : [], cv('--t-fire'), 'ครั้ง');
     $('k-fire-sub').textContent = n && (state.type === 'all' || state.type === FIRE) ? `${pct(fire / n)} ของเหตุทั้งหมด` : '';
 
     // takeaway

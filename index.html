@@ -5,60 +5,89 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>สถิติอุบัติเหตุนิคมฯ | EMCC</title>
   <meta name="description" content="สถิติการเกิดอุบัติเหตุในพื้นที่นิคมอุตสาหกรรมและท่าเรือ ข้อมูลจากศูนย์เฝ้าระวังคุณภาพสิ่งแวดล้อม และความปลอดภัย (EMCC)">
+  <meta name="theme-color" content="#0b3d4a">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Prompt:wght@500;600;700&family=Sarabun:wght@400;500;600;700&display=swap">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
-  <link rel="stylesheet" href="assets/style.css?v=4">
+  <link rel="stylesheet" href="assets/style.css?v=5">
 </head>
 <body>
-  <header class="topbar">
-    <div class="wrap topbar-in">
-      <div class="brand">
-        <span class="brand-mark" aria-hidden="true"></span>
-        <div>
-          <div class="brand-name">ศูนย์เฝ้าระวังคุณภาพสิ่งแวดล้อม และความปลอดภัย</div>
-          <div class="brand-sub">Environmental Monitoring and Control Center : EMCC</div>
+  <header class="hero">
+    <div class="wrap">
+      <div class="hero-top">
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 32 32" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3l11 4v8c0 7-4.8 11.6-11 14-6.2-2.4-11-7-11-14V7z"/><path d="M10.5 16.5l3.6 3.6 7.4-7.6"/></svg>
+          </span>
+          <div>
+            <div class="brand-name">ศูนย์เฝ้าระวังคุณภาพสิ่งแวดล้อม และความปลอดภัย</div>
+            <div class="brand-sub">Environmental Monitoring and Control Center : EMCC</div>
+          </div>
+        </div>
+        <div class="status" id="status">
+          <span class="dot" id="status-dot"></span>
+          <span id="status-text">กำลังโหลดข้อมูล…</span>
+          <button type="button" class="refresh" id="refresh" aria-label="โหลดข้อมูลใหม่">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg>
+            <span>โหลดใหม่</span>
+          </button>
         </div>
       </div>
-      <div class="status" id="status">
-        <span class="dot" id="status-dot"></span>
-        <span id="status-text">กำลังโหลดข้อมูล…</span>
-        <button type="button" class="link-btn" id="refresh">โหลดใหม่</button>
+      <div class="hero-body">
+        <span class="eyebrow">รายงานสถิติอุบัติเหตุ</span>
+        <h1>สถิติการเกิดอุบัติเหตุในพื้นที่นิคมอุตสาหกรรมและท่าเรือ</h1>
+        <p class="take" id="take">กำลังโหลดข้อมูล…</p>
       </div>
     </div>
   </header>
 
-  <main class="wrap main">
-    <section class="head">
-      <h1>สถิติการเกิดอุบัติเหตุในพื้นที่นิคมอุตสาหกรรมและท่าเรือ</h1>
-      <p class="take" id="take">กำลังโหลดข้อมูล…</p>
-    </section>
-
-    <section class="filters" aria-label="ตัวกรอง">
+  <div class="filterbar">
+    <section class="wrap filters" aria-label="ตัวกรอง">
       <div class="fgroup"><span class="flabel">ปีงบประมาณ</span><div class="chips" id="f-fy"></div></div>
       <div class="fgroup"><span class="flabel">ไตรมาส</span><div class="chips" id="f-q"></div></div>
       <div class="fgroup"><span class="flabel">ประเภทเหตุ</span><div class="chips" id="f-type"></div></div>
-      <div class="fgroup"><label class="flabel" for="f-estate">นิคมอุตสาหกรรม</label>
+      <div class="fgroup"><label class="flabel" for="f-estate">นิคมฯ</label>
         <select class="select" id="f-estate"><option value="all">ทุกนิคม</option></select></div>
-      <button type="button" class="link-btn reset" id="reset" hidden>ล้างตัวกรอง</button>
+      <button type="button" class="reset" id="reset" hidden>
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        ล้างตัวกรอง
+      </button>
     </section>
+  </div>
 
+  <main class="wrap main">
     <section class="kpis">
-      <div class="kpi"><span class="kpi-label">จำนวนเหตุ</span><div><span class="kpi-num" id="k-n">—</span><span class="kpi-unit">ครั้ง</span></div><span class="kpi-sub" id="k-n-sub"></span></div>
-      <div class="kpi"><span class="kpi-label">ผู้บาดเจ็บ</span><div><span class="kpi-num" id="k-inj">—</span><span class="kpi-unit">ราย</span></div><span class="kpi-sub" id="k-inj-sub"></span></div>
-      <div class="kpi bad"><span class="kpi-label">ผู้เสียชีวิต</span><div><span class="kpi-num" id="k-dead">—</span><span class="kpi-unit">ราย</span></div><span class="kpi-sub" id="k-dead-sub"></span></div>
-      <div class="kpi"><span class="kpi-label">เพลิงไหม้</span><div><span class="kpi-num" id="k-fire">—</span><span class="kpi-unit">ครั้ง</span></div><span class="kpi-sub" id="k-fire-sub"></span></div>
+      <div class="kpi">
+        <div class="kpi-top"><span class="kpi-ico i-n"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l9.5 17h-19z"/><path d="M12 10v4.5M12 17.5v.1"/></svg></span><span class="kpi-label">จำนวนเหตุ</span></div>
+        <div class="kpi-mid"><div><span class="kpi-num" id="k-n">—</span><span class="kpi-unit">ครั้ง</span></div><div class="spark" id="s-n" aria-hidden="true"></div></div>
+        <span class="kpi-sub" id="k-n-sub"></span>
+      </div>
+      <div class="kpi">
+        <div class="kpi-top"><span class="kpi-ico i-inj"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="12" rx="2.5"/><path d="M9 7V5h6v2M12 10.5v5M9.5 13h5"/></svg></span><span class="kpi-label">ผู้บาดเจ็บ</span></div>
+        <div class="kpi-mid"><div><span class="kpi-num" id="k-inj">—</span><span class="kpi-unit">ราย</span></div><div class="spark" id="s-inj" aria-hidden="true"></div></div>
+        <span class="kpi-sub" id="k-inj-sub"></span>
+      </div>
+      <div class="kpi bad">
+        <div class="kpi-top"><span class="kpi-ico i-dead"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7.5-4.6-7.5-10.5A4.3 4.3 0 0 1 12 7.6a4.3 4.3 0 0 1 7.5 2.9C19.5 16.4 12 21 12 21z"/><path d="M4.5 12h4l1.5-2.5 2.5 5 1.5-2.5h5.5"/></svg></span><span class="kpi-label">ผู้เสียชีวิต</span></div>
+        <div class="kpi-mid"><div><span class="kpi-num" id="k-dead">—</span><span class="kpi-unit">ราย</span></div><div class="spark" id="s-dead" aria-hidden="true"></div></div>
+        <span class="kpi-sub" id="k-dead-sub"></span>
+      </div>
+      <div class="kpi">
+        <div class="kpi-top"><span class="kpi-ico i-fire"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21c-3.9 0-6.5-2.6-6.5-6.2 0-3.8 3.2-5.6 3.6-9.8 2.6 1.5 4.3 3.9 4.6 6.4.8-.6 1.4-1.6 1.6-2.8 1.9 1.6 3.2 3.8 3.2 6.2 0 3.6-2.6 6.2-6.5 6.2z"/></svg></span><span class="kpi-label">เพลิงไหม้</span></div>
+        <div class="kpi-mid"><div><span class="kpi-num" id="k-fire">—</span><span class="kpi-unit">ครั้ง</span></div><div class="spark" id="s-fire" aria-hidden="true"></div></div>
+        <span class="kpi-sub" id="k-fire-sub"></span>
+      </div>
     </section>
 
     <section class="grid2">
       <article class="card">
-        <h2>เหตุแยกตามปีงบประมาณ</h2>
+        <div class="card-head"><h2>เหตุแยกตามปีงบประมาณ</h2></div>
         <p class="note">ทุกปี ตามไตรมาสและประเภทที่เลือก แท่งสีเข้มคือปีที่เลือก</p>
         <div class="chart" id="ch-year"></div>
       </article>
       <article class="card">
-        <h2>เหตุรายเดือน</h2>
+        <div class="card-head"><h2>เหตุรายเดือน</h2></div>
         <p class="note" id="month-note">ปีงบประมาณเริ่มเดือนตุลาคม</p>
         <div class="chart" id="ch-month"></div>
       </article>
@@ -68,16 +97,16 @@
       <article class="card map-card">
         <div class="card-head">
           <h2>แผนที่จุดเกิดเหตุ</h2>
-          <div class="chips small" id="basemap">
-            <button type="button" class="chip" data-base="gray" aria-pressed="true">แผนที่</button>
-            <button type="button" class="chip" data-base="imagery" aria-pressed="false">ภาพดาวเทียม</button>
+          <div class="seg" id="basemap">
+            <button type="button" class="seg-btn" data-base="gray" aria-pressed="true">แผนที่</button>
+            <button type="button" class="seg-btn" data-base="imagery" aria-pressed="false">ภาพดาวเทียม</button>
           </div>
         </div>
         <p class="note" id="map-note">คลิกจุดเพื่อดูรายละเอียด สีตามประเภทเหตุ ขนาดตามจำนวนผู้บาดเจ็บและเสียชีวิต</p>
         <div id="map" role="region" aria-label="แผนที่จุดเกิดเหตุ"></div>
       </article>
       <article class="card">
-        <h2>นิคมอุตสาหกรรมที่เกิดเหตุ</h2>
+        <div class="card-head"><h2>นิคมอุตสาหกรรมที่เกิดเหตุ</h2></div>
         <p class="note" id="estate-note">เรียงจากมากไปน้อย สีบอกประเภทเหตุที่พบมากที่สุด คลิกชื่อนิคมเพื่อกรอง</p>
         <div class="scroll" id="ch-estate"></div>
       </article>
@@ -85,17 +114,17 @@
 
     <section class="grid3">
       <article class="card">
-        <h2>ช่วงเวลาเกิดเหตุ</h2>
+        <div class="card-head"><h2>ช่วงเวลาเกิดเหตุ</h2></div>
         <p class="note">สัดส่วนจากจำนวนเหตุในช่วงที่เลือก</p>
         <div id="ch-slot"></div>
       </article>
       <article class="card">
-        <h2>สายปฏิบัติการ</h2>
+        <div class="card-head"><h2>สายปฏิบัติการ</h2></div>
         <p class="note">จำนวนเหตุที่แต่ละสายรับผิดชอบ</p>
         <div id="ch-line"></div>
       </article>
       <article class="card">
-        <h2>ประเภทโรงงานที่เกิดเหตุสูงสุด</h2>
+        <div class="card-head"><h2>ประเภทโรงงานที่เกิดเหตุสูงสุด</h2></div>
         <p class="note">ลำดับประเภทตามบัญชีท้าย พ.ร.บ.โรงงาน 6 อันดับแรก</p>
         <div id="ch-ftype"></div>
       </article>
@@ -104,7 +133,10 @@
     <section class="card">
       <div class="card-head">
         <h2>รายการเหตุ</h2>
-        <input class="search" id="search" type="search" placeholder="ค้นหาบริษัท นิคม หรือสาเหตุ" aria-label="ค้นหารายการเหตุ">
+        <label class="search-wrap">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></svg>
+          <input class="search" id="search" type="search" placeholder="ค้นหาบริษัท นิคม หรือสาเหตุ" aria-label="ค้นหารายการเหตุ">
+        </label>
       </div>
       <p class="note" id="cases-note">คลิกหัวตารางเพื่อเรียงลำดับ</p>
       <div class="tablewrap">
@@ -125,8 +157,8 @@
     </section>
 
     <footer class="foot">
-      ข้อมูลจากเลเยอร์ <a href="https://services5.arcgis.com/XbJa06Lil6auloCa/arcgis/rest/services/Emergency_Case/FeatureServer/0" target="_blank" rel="noopener">Emergency_Case</a> บน ArcGIS Online
-      · แผนที่ฐาน Esri
+      <span>ศูนย์เฝ้าระวังคุณภาพสิ่งแวดล้อม และความปลอดภัย (EMCC)</span>
+      <span>ข้อมูลจากเลเยอร์ <a href="https://services5.arcgis.com/XbJa06Lil6auloCa/arcgis/rest/services/Emergency_Case/FeatureServer/0" target="_blank" rel="noopener">Emergency_Case</a> บน ArcGIS Online · แผนที่ฐาน Esri</span>
     </footer>
   </main>
 
@@ -134,6 +166,6 @@
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
-  <script src="assets/app.js?v=4"></script>
+  <script src="assets/app.js?v=5"></script>
 </body>
 </html>
