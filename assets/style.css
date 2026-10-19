@@ -183,6 +183,14 @@ svg text { font-family: var(--font); }
 .seg-btn { border: 0; background: none; border-radius: 999px; padding: 3px 16px; font-size: 14.5px; color: #333; cursor: pointer; }
 .seg-btn[aria-pressed="true"] { background: #000; color: #fff; }
 .seg-btn:focus-visible { outline: 2px solid var(--hi); outline-offset: 2px; }
+.map-ctrls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+.chk { display: inline-flex; align-items: center; gap: 7px; font-size: 14.5px; color: #333; cursor: pointer; background: #ececee; border-radius: 999px; padding: 4px 14px 4px 10px; }
+.chk input { width: 16px; height: 16px; margin: 0; accent-color: #000; }
+.chk:focus-within { outline: 2px solid var(--hi); outline-offset: 2px; }
+.parcel-note { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; font-size: 14px; }
+.parcel-note:empty { display: none; }
+.parcel-note .pk { display: inline-flex; align-items: center; gap: 6px; }
+.parcel-note .ps { width: 14px; height: 10px; border-radius: 2px; border: 1.5px solid #4a4d52; flex: none; }
 
 /* table */
 .search-wrap { display: flex; align-items: center; gap: 8px; width: min(100%, 320px); padding: 7px 14px; border-radius: 999px; background: #efeff1; color: var(--faint); }

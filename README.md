@@ -8,6 +8,9 @@
 
 - เมื่อเปิดหน้าเว็บ เบราว์เซอร์จะดึง**ข้อมูลสด**จากเลเยอร์ `Emergency_Case` บน ArcGIS Online โดยตรง
   `https://services5.arcgis.com/XbJa06Lil6auloCa/arcgis/rest/services/Emergency_Case/FeatureServer/0`
+- **ขอบเขตนิคมฯ** บนแผนที่ดึงจากเลเยอร์แปลงที่ดิน `EPP_2026_V1` (ประมาณ 18,000 แปลง)
+  `https://services5.arcgis.com/XbJa06Lil6auloCa/arcgis/rest/services/EPP_2026_V1/FeatureServer/0`
+  โหลดเฉพาะแปลงในพื้นที่ที่มองเห็น เมื่อซูมถึงระดับ 13 ขึ้นไป (ปรับได้ที่ `PARCEL_ZOOM` ใน `assets/app.js`) และเปิด/ปิดได้ด้วยปุ่ม "ขอบเขตนิคมฯ"
 - ถ้าเชื่อมต่อ ArcGIS ไม่ได้ จะใช้ไฟล์สำรอง `data/emergency_case.json` แทน แถบด้านบนจะแจ้งว่ากำลังใช้ข้อมูลชุดไหน
 - จะอัปเดตไฟล์สำรองเมื่อไหร่ก็ได้ วางไฟล์ JSON ที่เป็นอาร์เรย์ของแถว หรือไฟล์ GeoJSON ที่ export จาก ArcGIS ทับไฟล์เดิมได้เลย
 

@@ -408,6 +408,61 @@
     clearTimeout(toastT); toastT = setTimeout(() => { t.hidden = true; }, 3500);
   }
 
+  // ---------- estate parcels (EPP_2026_V1) ----------
+  /* 18k land parcels, so they load per visible area from zoom PARCEL_ZOOM up, simplified by esri-leaflet. */
+  const PARCELS = 'https://services5.arcgis.com/XbJa06Lil6auloCa/arcgis/rest/services/EPP_2026_V1/FeatureServer/0';
+  const PARCEL_ZOOM = 13;
+  const PARCEL_KINDS = [
+    { key: 'ind', label: 'เขตอุตสาหกรรม', fill: '#9aa0a8', test: (d) => /อุตสาหกรรม|โรงงาน|คลังสินค้า|พาณิชย/.test(d) },
+    { key: 'green', label: 'พื้นที่สีเขียว', fill: '#3c9a4e', test: (d) => /สีเขียว|สวน|แนวกันชน|buffer/i.test(d) },
+    { key: 'util', label: 'สาธารณูปโภค / สำนักงาน', fill: '#3f6fb5', test: (d) => /สาธารณูปโภค|ราชการ|สำนักงาน|ถนน|บำบัด|ประปา/.test(d) },
+    { key: 'other', label: 'อื่นๆ', fill: '#c9ccd1', test: () => true },
+  ];
+  const parcelKind = (d) => PARCEL_KINDS.find((k) => k.test(d || ''));
+  let parcels = null, parcelLoading = false, parcelError = false;
+  const parcelStroke = () => (bases.imagery && map.hasLayer(bases.imagery) ? '#ffffff' : '#4a4d52');
+  function parcelStyle(f) {
+    const k = parcelKind(f.properties.Discription);
+    return { color: parcelStroke(), weight: 1, opacity: 0.85, fillColor: k.fill, fillOpacity: k.key === 'ind' ? 0.12 : 0.22 };
+  }
+  function parcelPopup(l) {
+    const p = l.feature.properties, box = el('div');
+    box.append(el('div', 'pop-h', p.IEAT ? `นิคมฯ ${p.IEAT}` : 'ขอบเขตนิคมอุตสาหกรรม'));
+    const add = (k, v) => { if (v && String(v).trim()) { const d = el('div', 'pop-m'); d.append(el('b', null, k + ' '), document.createTextNode(String(v).trim())); box.append(d); } };
+    add('แปลง', p.Name_Parcel);
+    add('การใช้ที่ดิน', p.Discription);
+    add('ผู้ประกอบการ', p.mercant_name);
+    add('ประเภทกิจการ', p.factory_work_desc);
+    add('สถานะ', p.build_status);
+    return box;
+  }
+  function parcelNote() {
+    const n = $('parcel-note');
+    if (!map || !parcels) { n.textContent = ''; return; }
+    if (!$('parcels-on').checked) { n.textContent = ''; return; }
+    if (parcelError) { n.textContent = 'โหลดขอบเขตนิคมฯ ไม่ได้ในขณะนี้'; return; }
+    if (map.getZoom() < PARCEL_ZOOM) { n.textContent = 'ซูมเข้าใกล้นิคมฯ (หรือเลือกนิคมฯ ในตัวกรอง) เพื่อดูขอบเขตแปลงที่ดิน'; return; }
+    n.replaceChildren(el('span', null, parcelLoading ? 'กำลังโหลดขอบเขตนิคมฯ…' : 'ขอบเขตนิคมฯ:'),
+      ...PARCEL_KINDS.map((k) => { const s = el('span', 'pk'); const w = el('span', 'ps'); w.style.background = k.fill + '55'; s.append(w, document.createTextNode(k.label)); return s; }));
+  }
+  function initParcels() {
+    if (!L.esri) return;
+    map.createPane('parcels').style.zIndex = 350; // below incident points (overlayPane = 400)
+    parcels = L.esri.featureLayer({
+      url: PARCELS, pane: 'parcels', minZoom: PARCEL_ZOOM, simplifyFactor: 0.35, precision: 6,
+      fields: ['OBJECTID', 'IEAT', 'Name_Parcel', 'Discription', 'mercant_name', 'factory_work_desc', 'build_status'],
+      style: parcelStyle,
+    });
+    parcels.bindPopup(parcelPopup, { maxWidth: 320 });
+    parcels.on('loading', () => { parcelLoading = true; parcelNote(); });
+    parcels.on('load', () => { parcelLoading = false; parcelError = false; parcelNote(); });
+    parcels.on('requesterror', () => { parcelLoading = false; parcelError = true; parcelNote(); });
+    parcels.addTo(map);
+    map.on('zoomend', parcelNote);
+    $('parcels-on').addEventListener('change', (e) => { if (e.target.checked) parcels.addTo(map); else map.removeLayer(parcels); parcelNote(); });
+    parcelNote();
+  }
+
   // ---------- map ----------
   let map, layer, ringLayer;
   let markers = new Map();
@@ -428,7 +483,9 @@
       Object.values(bases).forEach((l) => map.removeLayer(l));
       bases[b.dataset.base].addTo(map);
       document.querySelectorAll('#basemap .seg-btn').forEach((o) => o.setAttribute('aria-pressed', o === b ? 'true' : 'false'));
+      if (parcels) parcels.setStyle(parcelStyle);
     }));
+    initParcels();
   }
   let lastFitKey = '';
   function drawMap(list, types) {
@@ -451,7 +508,7 @@
     $('map-note').textContent = `${fmt(pts.length)} จุดในช่วงที่เลือก · คลิกจุดเพื่อดูรายละเอียด · ขนาดตามจำนวนผู้บาดเจ็บและเสียชีวิต`;
     const key = [state.fy, state.q, state.type, state.estate].join('|');
     if (pts.length && key !== lastFitKey) {
-      map.fitBounds(L.latLngBounds(pts.map((r) => [r.lat, r.lon])).pad(0.15), { maxZoom: 11 });
+      map.fitBounds(L.latLngBounds(pts.map((r) => [r.lat, r.lon])).pad(0.15), { maxZoom: state.estate === 'all' ? 11 : 14 });
       lastFitKey = key;
     }
   }

@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Prompt:wght@500;600;700&family=Sarabun:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
-  <link rel="stylesheet" href="assets/style.css?v=9">
+  <link rel="stylesheet" href="assets/style.css?v=10">
   <script src="assets/auth.js?v=8"></script>
 </head>
 <body>
@@ -138,13 +138,17 @@
     <section class="card wide" id="map-section">
       <div class="card-head">
         <h2>แผนที่จุดเกิดเหตุ</h2>
+        <div class="map-ctrls">
+        <label class="chk"><input type="checkbox" id="parcels-on" checked> ขอบเขตนิคมฯ</label>
         <div class="seg" id="basemap">
           <button type="button" class="seg-btn" data-base="gray" aria-pressed="true">แผนที่</button>
           <button type="button" class="seg-btn" data-base="imagery" aria-pressed="false">ภาพดาวเทียม</button>
         </div>
+        </div>
       </div>
       <div class="legend" id="legend"></div>
       <p class="note" id="map-note">คลิกจุดเพื่อดูรายละเอียด</p>
+      <p class="note parcel-note" id="parcel-note" aria-live="polite"></p>
       <div class="map-wrap">
         <div id="map" role="region" aria-label="แผนที่จุดเกิดเหตุ"></div>
         <div class="map-focus" id="map-focus" hidden>
@@ -183,7 +187,7 @@
 
     <footer class="foot">
       <span>ศูนย์เฝ้าระวังคุณภาพสิ่งแวดล้อม และความปลอดภัย (EMCC)</span>
-      <span>ข้อมูลจากเลเยอร์ <a href="https://services5.arcgis.com/XbJa06Lil6auloCa/arcgis/rest/services/Emergency_Case/FeatureServer/0" target="_blank" rel="noopener">Emergency_Case</a> บน ArcGIS Online · แผนที่ฐาน Esri</span>
+      <span>ข้อมูลจากเลเยอร์ <a href="https://services5.arcgis.com/XbJa06Lil6auloCa/arcgis/rest/services/Emergency_Case/FeatureServer/0" target="_blank" rel="noopener">Emergency_Case</a> และขอบเขตนิคมฯ <a href="https://services5.arcgis.com/XbJa06Lil6auloCa/arcgis/rest/services/EPP_2026_V1/FeatureServer/0" target="_blank" rel="noopener">EPP_2026_V1</a> บน ArcGIS Online · แผนที่ฐาน Esri</span>
     </footer>
   </main>
 
@@ -192,6 +196,7 @@
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
-  <script src="assets/app.js?v=9"></script>
+  <script src="https://unpkg.com/esri-leaflet@3.0.19/dist/esri-leaflet.js" crossorigin=""></script>
+  <script src="assets/app.js?v=10"></script>
 </body>
 </html>
