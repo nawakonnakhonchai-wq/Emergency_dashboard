@@ -592,5 +592,6 @@
     row.focus({ preventScroll: true });
   });
   initMap();
-  load();
+  // Wait for the login gate (assets/auth.js) before fetching data.
+  (window.emccReady || Promise.resolve()).then(load);
 })();

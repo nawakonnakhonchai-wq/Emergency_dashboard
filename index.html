@@ -10,9 +10,32 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Prompt:wght@500;600;700&family=Sarabun:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
-  <link rel="stylesheet" href="assets/style.css?v=7">
+  <link rel="stylesheet" href="assets/style.css?v=8">
+  <script src="assets/auth.js?v=8"></script>
 </head>
 <body>
+  <div class="gate" id="gate">
+    <form class="gate-card" id="gate-form" novalidate aria-labelledby="gate-title">
+      <div class="gate-brand">
+        <svg class="gate-mark" viewBox="0 0 32 32" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 3l11 4v8c0 7-4.8 11.6-11 14-6.2-2.4-11-7-11-14V7z"/><path d="M10.5 16.5l3.6 3.6 7.4-7.6"/></svg>
+        <div>
+          <div class="gate-org">ศูนย์เฝ้าระวังคุณภาพสิ่งแวดล้อม และความปลอดภัย</div>
+          <div class="gate-sub">ENVIRONMENTAL MONITORING AND CONTROL CENTER : EMCC</div>
+        </div>
+      </div>
+      <h1 id="gate-title">เข้าสู่ระบบ</h1>
+      <p class="gate-lead">แดชบอร์ดสถิติอุบัติเหตุในนิคมอุตสาหกรรมและท่าเรือ</p>
+      <label class="field"><span class="field-k">ชื่อผู้ใช้</span>
+        <input id="gate-user" name="username" autocomplete="username" autocapitalize="none" spellcheck="false" required></label>
+      <label class="field"><span class="field-k">รหัสผ่าน</span>
+        <span class="pw"><input id="gate-pass" name="password" type="password" autocomplete="current-password" required>
+        <button type="button" class="eye" id="gate-eye" aria-label="แสดงรหัสผ่าน">แสดง</button></span></label>
+      <label class="remember"><input type="checkbox" id="gate-remember"> จดจำการเข้าสู่ระบบในเครื่องนี้ 7 วัน</label>
+      <p class="gate-err" id="gate-err" role="alert" hidden></p>
+      <button type="submit" class="gate-btn" id="gate-btn">เข้าสู่ระบบ</button>
+      <p class="gate-foot">สำหรับเจ้าหน้าที่ EMCC · ติดต่อผู้ดูแลระบบเพื่อขอบัญชีผู้ใช้</p>
+    </form>
+  </div>
   <header class="top">
     <div class="wrap">
       <div class="top-row">
@@ -33,7 +56,9 @@
         </nav>
         <div class="status">
           <div class="status-line"><span class="dot" id="status-dot"></span><span id="status-text">กำลังโหลดข้อมูล…</span></div>
-          <button type="button" class="refresh" id="refresh">โหลดข้อมูลใหม่</button>
+          <div class="status-acts"><button type="button" class="refresh" id="refresh">โหลดข้อมูลใหม่</button>
+          <span class="who-sep" aria-hidden="true">·</span><span class="who" id="who"></span>
+          <button type="button" class="refresh" id="logout">ออกจากระบบ</button></div>
         </div>
       </div>
 
@@ -167,6 +192,6 @@
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
-  <script src="assets/app.js?v=7"></script>
+  <script src="assets/app.js?v=8"></script>
 </body>
 </html>
