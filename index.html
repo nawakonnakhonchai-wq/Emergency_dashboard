@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>สถิติอุบัติเหตุนิคมฯ | IEAT EMCC</title>
+  <meta name="description" content="สถิติการเกิดอุบัติเหตุในพื้นที่นิคมอุตสาหกรรมและท่าเรือ ข้อมูลจาก IEAT EMCC">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600&family=IBM+Plex+Sans+Thai+Looped:wght@600&display=swap">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="wrap topbar-in">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <div>
+          <div class="brand-name">IEAT EMCC</div>
+          <div class="brand-sub">ศูนย์ประสานงานเหตุฉุกเฉิน การนิคมอุตสาหกรรมแห่งประเทศไทย</div>
+        </div>
+      </div>
+      <div class="status" id="status">
+        <span class="dot" id="status-dot"></span>
+        <span id="status-text">กำลังโหลดข้อมูล…</span>
+        <button type="button" class="link-btn" id="refresh">โหลดใหม่</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap main">
+    <section class="head">
+      <h1>สถิติการเกิดอุบัติเหตุในพื้นที่นิคมอุตสาหกรรมและท่าเรือ</h1>
+      <p class="take" id="take">กำลังโหลดข้อมูล…</p>
+    </section>
+
+    <section class="filters" aria-label="ตัวกรอง">
+      <div class="fgroup"><span class="flabel">ปีงบประมาณ</span><div class="chips" id="f-fy"></div></div>
+      <div class="fgroup"><span class="flabel">ไตรมาส</span><div class="chips" id="f-q"></div></div>
+      <div class="fgroup"><span class="flabel">ประเภทเหตุ</span><div class="chips" id="f-type"></div></div>
+      <button type="button" class="link-btn reset" id="reset" hidden>ล้างตัวกรอง</button>
+    </section>
+
+    <section class="kpis">
+      <div class="kpi"><span class="kpi-label">จำนวนเหตุ</span><div><span class="kpi-num" id="k-n">—</span><span class="kpi-unit">ครั้ง</span></div><span class="kpi-sub" id="k-n-sub"></span></div>
+      <div class="kpi"><span class="kpi-label">ผู้บาดเจ็บ</span><div><span class="kpi-num" id="k-inj">—</span><span class="kpi-unit">ราย</span></div><span class="kpi-sub" id="k-inj-sub"></span></div>
+      <div class="kpi bad"><span class="kpi-label">ผู้เสียชีวิต</span><div><span class="kpi-num" id="k-dead">—</span><span class="kpi-unit">ราย</span></div><span class="kpi-sub" id="k-dead-sub"></span></div>
+      <div class="kpi"><span class="kpi-label">เพลิงไหม้</span><div><span class="kpi-num" id="k-fire">—</span><span class="kpi-unit">ครั้ง</span></div><span class="kpi-sub" id="k-fire-sub"></span></div>
+    </section>
+
+    <section class="grid2">
+      <article class="card">
+        <h2>เหตุแยกตามปีงบประมาณ</h2>
+        <p class="note">ทุกปี ตามไตรมาสและประเภทที่เลือก แท่งสีเข้มคือปีที่เลือก</p>
+        <div class="chart" id="ch-year"></div>
+      </article>
+      <article class="card">
+        <h2>เหตุรายเดือน</h2>
+        <p class="note" id="month-note">ปีงบประมาณเริ่มเดือนตุลาคม</p>
+        <div class="chart" id="ch-month"></div>
+      </article>
+    </section>
+
+    <section class="grid-map">
+      <article class="card map-card">
+        <div class="card-head">
+          <h2>แผนที่จุดเกิดเหตุ</h2>
+          <div class="chips small" id="basemap">
+            <button type="button" class="chip" data-base="gray" aria-pressed="true">แผนที่</button>
+            <button type="button" class="chip" data-base="imagery" aria-pressed="false">ภาพดาวเทียม</button>
+          </div>
+        </div>
+        <p class="note" id="map-note">คลิกจุดเพื่อดูรายละเอียด สีตามประเภทเหตุ ขนาดตามจำนวนผู้บาดเจ็บและเสียชีวิต</p>
+        <div id="map" role="region" aria-label="แผนที่จุดเกิดเหตุ"></div>
+      </article>
+      <article class="card">
+        <h2>นิคมอุตสาหกรรมที่เกิดเหตุ</h2>
+        <p class="note">เรียงจากมากไปน้อย สีบอกประเภทเหตุที่พบมากที่สุดในนิคมนั้น</p>
+        <div class="scroll" id="ch-estate"></div>
+      </article>
+    </section>
+
+    <section class="grid3">
+      <article class="card">
+        <h2>ช่วงเวลาเกิดเหตุ</h2>
+        <p class="note">สัดส่วนจากจำนวนเหตุในช่วงที่เลือก</p>
+        <div id="ch-slot"></div>
+      </article>
+      <article class="card">
+        <h2>สายปฏิบัติการ</h2>
+        <p class="note">จำนวนเหตุที่แต่ละสายรับผิดชอบ</p>
+        <div id="ch-line"></div>
+      </article>
+      <article class="card">
+        <h2>ประเภทโรงงานที่เกิดเหตุสูงสุด</h2>
+        <p class="note">ลำดับประเภทตามบัญชีท้าย พ.ร.บ.โรงงาน 6 อันดับแรก</p>
+        <div id="ch-ftype"></div>
+      </article>
+    </section>
+
+    <section class="card">
+      <div class="card-head">
+        <h2>รายการเหตุ</h2>
+        <input class="search" id="search" type="search" placeholder="ค้นหาบริษัท นิคม หรือสาเหตุ" aria-label="ค้นหารายการเหตุ">
+      </div>
+      <p class="note" id="cases-note">คลิกหัวตารางเพื่อเรียงลำดับ</p>
+      <div class="tablewrap">
+        <table class="table" id="tbl">
+          <thead><tr>
+            <th><button type="button" data-sort="case">Case</button></th>
+            <th><button type="button" data-sort="case">วันที่</button></th>
+            <th><button type="button" data-sort="type">เหตุการณ์</button></th>
+            <th class="hide-sm"><button type="button" data-sort="company">บริษัท</button></th>
+            <th><button type="button" data-sort="estate">สถานที่ตั้ง</button></th>
+            <th class="hide-sm"><button type="button" data-sort="cause">สาเหตุ</button></th>
+            <th class="n"><button type="button" data-sort="inj">บาดเจ็บ</button></th>
+            <th class="n"><button type="button" data-sort="dead">เสียชีวิต</button></th>
+          </tr></thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <footer class="foot">
+      ข้อมูลจากเลเยอร์ <a href="https://services5.arcgis.com/XbJa06Lil6auloCa/arcgis/rest/services/Emergency_Case/FeatureServer/0" target="_blank" rel="noopener">Emergency_Case</a> บน ArcGIS Online
+      · แผนที่ฐาน Esri
+    </footer>
+  </main>
+
+  <div class="tip" id="tip" hidden></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <script src="assets/app.js"></script>
+</body>
+</html>
