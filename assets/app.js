@@ -203,6 +203,13 @@
   const ARROW_UP = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 11.5l7-7M5.5 4.5h6v6"/></svg>';
   const ARROW_DN = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 4.5l7 7M11.5 5.5v6h-6"/></svg>';
 
+  /* column with 4px rounded top, square at the baseline */
+  function col(svg, x, base, w, h, fill) {
+    const r = Math.min(4, w / 2, h);
+    return svg.append('path').attr('fill', fill)
+      .attr('d', h <= 0 ? '' : `M${x},${base}V${base - h + r}Q${x},${base - h} ${x + r},${base - h}H${x + w - r}Q${x + w},${base - h} ${x + w},${base - h + r}V${base}Z`);
+  }
+
   /* Yearly column chart: grey for other years, teal for the selected year (charcoal when all
      years are shown), and a dot under each column — red up / green down vs the year before. */
   function yearBars(box, data, fmtV, unit) {
@@ -215,9 +222,9 @@
     const svg = d3.select(box).append('svg').attr('width', '100%').attr('viewBox', `0 0 ${W} ${H}`);
     data.forEach((d, i) => {
       const sel = state.fy !== 'all' && d.y === state.fy;
-      const fill = state.fy === 'all' ? cv('--ink') : sel ? cv('--hi') : cv('--past');
+      const fill = state.fy === 'all' ? cv('--bar') : sel ? cv('--bar-hi') : cv('--past');
       const h = Math.max(d.v ? 2 : 0, base - y(d.v));
-      svg.append('rect').attr('x', x(d.y)).attr('y', base - h).attr('width', x.bandwidth()).attr('height', h).attr('fill', fill);
+      col(svg, x(d.y), base, x.bandwidth(), h, fill);
       if (sel || (state.fy === 'all' && x.bandwidth() > 24)) {
         svg.append('text').attr('x', x(d.y) + x.bandwidth() / 2).attr('y', base - h - 4).attr('text-anchor', 'middle')
           .attr('font-size', 12).attr('font-weight', 600).attr('fill', cv('--fg')).text(fmtV(d.v));
@@ -279,7 +286,7 @@
     const svg = d3.select(box).append('svg').attr('width', '100%').attr('viewBox', `0 0 ${W} ${H}`);
     months.forEach((m, i) => {
       const v = vals[i], h = Math.max(v ? 2 : 0, base - y(v));
-      svg.append('rect').attr('x', x(m)).attr('y', base - h).attr('width', x.bandwidth()).attr('height', h).attr('fill', v === mx ? cv('--hi') : cv('--ink'));
+      col(svg, x(m), base, x.bandwidth(), h, v === mx ? cv('--bar-hi') : cv('--bar'));
       if (v) svg.append('text').attr('x', x(m) + x.bandwidth() / 2).attr('y', base - h - 4).attr('text-anchor', 'middle').attr('font-size', 12).attr('font-weight', 600).attr('fill', cv('--fg')).text(v);
       let dc = cv('--past'), pv = null;
       if (prevMap) { pv = prevMap.get(m) || 0; dc = v === pv ? cv('--past') : v > pv ? cv('--red') : cv('--green'); }
@@ -291,7 +298,7 @@
     });
   }
 
-  /* horizontal bars: label at left, charcoal bar with value inside */
+  /* horizontal bars: label at left, thin bar, value right after the bar */
   function hbars(box, items, opt = {}) {
     const max = d3.max(items, (d) => d.n) || 1;
     const wrap = el('div', 'hbars');
@@ -307,11 +314,9 @@
       const w = d.n / max;
       const lab = el('span', 'v', fmt(d.n));
       if (opt.total) lab.append(el('small', null, pct(d.n / opt.total)));
-      f.style.width = Math.max(2, w * 100) + '%';
+      f.style.width = `max(3px, calc(${w} * (100% - ${opt.total ? 5 : 2.6}rem)))`;
       if (d.color) f.style.background = d.color;
-      // label sits inside long bars, just past the end of short ones
-      if (w >= (opt.total ? 0.42 : 0.28)) f.append(lab); else { lab.classList.add('out'); }
-      t.append(f); if (lab.classList.contains('out')) t.append(lab);
+      t.append(f, lab);
       row.append(l, t); wrap.append(row);
     }
     box.replaceChildren(items.length ? wrap : el('div', 'empty', 'ไม่มีเหตุในช่วงที่เลือก'));
@@ -321,7 +326,7 @@
   function donut(box, items, total) {
     box.replaceChildren();
     if (!total) { box.append(el('div', 'empty', 'ไม่มีเหตุในช่วงที่เลือก')); return; }
-    const colors = [cv('--hi'), cv('--coral'), cv('--past')];
+    const colors = [cv('--t-day'), cv('--t-eve'), cv('--t-night')];
     const wrap = el('div', 'donut');
     const S = 150, R = 70, r = 46;
     const svg = d3.select(wrap).append('svg').attr('viewBox', `0 0 ${S} ${S}`).attr('class', 'donut-svg');
@@ -353,8 +358,8 @@
       w.append(el('div', 'ring-t', it.title));
       const svg = document.createElementNS(NS, 'svg'); svg.setAttribute('viewBox', '0 0 92 92');
       const R = 36, C = 2 * Math.PI * R, p = it.den ? it.num / it.den : 0;
-      svg.innerHTML = `<circle cx="46" cy="46" r="${R}" fill="none" stroke="${cv('--past')}" stroke-width="10"/>` +
-        `<circle cx="46" cy="46" r="${R}" fill="none" stroke="${it.color}" stroke-width="10" stroke-dasharray="${C * p} ${C}" transform="rotate(-90 46 46)"/>`;
+      svg.innerHTML = `<circle cx="46" cy="46" r="${R}" fill="none" stroke="${cv('--track')}" stroke-width="10"/>` +
+        `<circle cx="46" cy="46" r="${R}" fill="none" stroke="${it.color}" stroke-width="10" stroke-linecap="${p > 0 && p < 1 ? 'round' : 'butt'}" stroke-dasharray="${C * p} ${C}" transform="rotate(-90 46 46)"/>`;
       const t = document.createElementNS(NS, 'text');
       t.setAttribute('x', '46'); t.setAttribute('y', '51'); t.setAttribute('text-anchor', 'middle'); t.setAttribute('font-size', '16'); t.setAttribute('font-weight', '700'); t.setAttribute('fill', cv('--fg'));
       t.textContent = it.den ? pct1(p) : '—';
@@ -537,7 +542,7 @@
     // column 1
     metric($('m-n'), { title: 'จำนวนเหตุ', cur: n, prev: prev ? prev.length : null, prevFy, unit: ' ครั้ง', fmt, note: allNote, series: byFy((l) => l.length) });
     const tc = countBy(cur, 'type');
-    hbars($('ch-type'), types.map((t) => ({ label: t, n: tc.get(t) || 0, color: state.type === 'all' || state.type === t ? null : cv('--past') })).filter((d) => d.n), { total: n });
+    hbars($('ch-type'), types.map((t) => ({ label: t, n: tc.get(t) || 0, color: state.type === 'all' || state.type === t ? typeColor(t) : cv('--past') })).filter((d) => d.n), { total: n });
     const byEst = d3.rollup(filtered({ ignoreEstate: true }).filter((r) => r.estate), (v) => v.length, (r) => r.estate);
     hbars($('ch-estate'), [...byEst].map(([k, v]) => ({ label: k, n: v })).sort((a, b) => b.n - a.n || a.label.localeCompare(b.label, 'th')), {
       selected: state.estate === 'all' ? null : state.estate,
@@ -549,9 +554,9 @@
     metric($('m-dead'), { title: 'ผู้เสียชีวิต', cur: dead, prev: prev ? sum(prev, 'dead') : null, prevFy, unit: ' ราย', fmt, note: allNote, series: byFy((l) => sum(l, 'dead')) });
     const opKnown = cur.filter((r) => r.operating != null);
     rings($('rings'), [
-      { title: 'มีผู้บาดเจ็บ', num: cur.filter((r) => r.inj > 0).length, den: n, color: cv('--ink') },
+      { title: 'มีผู้บาดเจ็บ', num: cur.filter((r) => r.inj > 0).length, den: n, color: cv('--t-inj') },
       { title: 'มีผู้เสียชีวิต', num: cur.filter((r) => r.dead > 0).length, den: n, color: cv('--red') },
-      { title: 'ขณะประกอบกิจการ', num: opKnown.filter((r) => r.operating).length, den: opKnown.length, color: cv('--hi') },
+      { title: 'ขณะประกอบกิจการ', num: opKnown.filter((r) => r.operating).length, den: opKnown.length, color: cv('--bar-hi') },
     ]);
 
     // column 3
@@ -559,7 +564,7 @@
     const prevMc = prev ? countBy(prev, 'month') : null;
     const months = state.q === 'all' ? MONTHS : MONTHS.slice((Number(state.q) - 1) * 3, Number(state.q) * 3);
     monthBars($('ch-month'), mc, prevMc, months);
-    $('month-hint').textContent = prevMc ? `จุดเทียบเดือนเดียวกันปีงบ ${prevFy}` : 'แท่งสีฟ้าเขียวคือเดือนที่เกิดเหตุมากที่สุด';
+    $('month-hint').textContent = prevMc ? `จุดเทียบเดือนเดียวกันปีงบ ${prevFy}` : 'แท่งสีเข้มคือเดือนที่เกิดเหตุมากที่สุด';
     const sc = countBy(cur, 'slot');
     donut($('ch-slot'), SLOTS.map((s) => ({ label: s, n: sc.get(s) || 0 })), d3.sum(SLOTS, (s) => sc.get(s) || 0));
     const lc = countBy(cur, 'line');

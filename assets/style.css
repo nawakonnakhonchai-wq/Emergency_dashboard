@@ -23,7 +23,13 @@
   --t-chem: #1aa39d;
   --t-acc: #3f6fb5;
   --t-other: #9b9ea4;
-  --bar: #3c3d40;
+  --bar: #8fd3ce;      /* chart bars: light teal */
+  --bar-hi: #0a8f88;   /* chart emphasis: selected / highest */
+  --track: #eef0f2;    /* empty part of rings and bars */
+  --t-day: #eda100;    /* time of day */
+  --t-eve: #e05f74;
+  --t-night: #3f6fb5;
+  --t-inj: #f09440;
 
   --font: "Sarabun", "Noto Sans Thai", "Leelawadee UI", Tahoma, sans-serif;
   --font-head: "Prompt", "Sarabun", Tahoma, sans-serif;
@@ -131,20 +137,19 @@ button { font: inherit; }
 .m-chart, .chart { margin-top: 8px; }
 svg text { font-family: var(--font); }
 
-/* horizontal bars, label left / dark bar / value inside */
-.hbars { display: grid; gap: 8px; }
-.hb { display: grid; grid-template-columns: minmax(6.5rem, 40%) 1fr; gap: 10px; align-items: center; font-size: 15px; color: #3a3d42; }
+/* horizontal bars: label at left, thin rounded bar, value right after it */
+.hbars { display: grid; gap: 4px; }
+.hb { display: grid; grid-template-columns: minmax(5.5rem, 36%) 1fr; gap: 10px; align-items: center; font-size: 15px; color: #3a3d42; }
 .hb .l { text-align: right; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-.hb .t { display: flex; align-items: center; gap: 6px; height: 30px; min-width: 0; }
-.hb .f { height: 100%; flex: none; background: var(--ink); color: #fff; display: flex; align-items: center; justify-content: flex-end; padding-right: 8px;
-  font-size: 14px; font-weight: 600; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .25); transition: width .45s cubic-bezier(.2, .7, .2, 1); }
-.hb .v { white-space: nowrap; }
-.hb .v small { font-weight: 400; opacity: .75; margin-left: 4px; }
-.hb .v.out { color: var(--fg); font-size: 14px; font-weight: 600; }
+.hb .t { display: flex; align-items: center; gap: 8px; min-height: 30px; min-width: 0; }
+.hb .f { height: 14px; flex: none; background: var(--bar); border-radius: 0 4px 4px 0; transition: width .45s cubic-bezier(.2, .7, .2, 1); }
+.hb .v { white-space: nowrap; color: var(--fg); font-size: 14.5px; font-weight: 600; }
+.hb .v small { font-weight: 400; color: var(--muted); margin-left: 5px; font-size: 13px; }
 .hb.click { cursor: pointer; background: none; border: 0; padding: 2px 4px; margin-inline: -4px; border-radius: 8px; font: inherit; color: inherit; text-align: left; width: calc(100% + 8px); }
 .hb.click:hover { background: var(--panel-2); }
 .hb.click:focus-visible { outline: 2px solid var(--hi); }
-.hb.sel .f { background: var(--hi); }
+.hb.sel .f { background: var(--bar-hi); }
+.hb.sel .l { color: var(--fg); font-weight: 600; }
 .hb.dim { opacity: .45; }
 .scroll { max-height: 470px; overflow: auto; padding-right: 6px; }
 
