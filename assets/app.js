@@ -154,7 +154,7 @@
   // ---------- charts ----------
   function stacked(box, cats, series, getN, highlight) {
     box.replaceChildren();
-    const W = Math.max(280, box.clientWidth), H = 260, m = { t: 22, r: 4, b: 28, l: 30 };
+    const W = Math.max(280, box.clientWidth), H = 290, m = { t: 26, r: 4, b: 34, l: 36 };
     const totals = cats.map((c) => d3.sum(series, (s) => getN(c, s)));
     if (!d3.sum(totals)) { box.append(el('div', 'empty', 'ไม่มีเหตุในช่วงที่เลือก')); return; }
     const y = d3.scaleLinear([0, Math.max(4, d3.max(totals))], [H - m.b, m.t]).nice();
@@ -170,7 +170,7 @@
     // thin x labels if they collide
     const ticks = xa.selectAll('.tick text').nodes();
     const widest = d3.max(ticks, (t) => t.getComputedTextLength()) || 0;
-    const step = Math.ceil((widest + 6) / x.step());
+    const step = Math.ceil((widest + 8) / x.step());
     if (step > 1) ticks.forEach((t, i) => { if (i % step) t.remove(); });
     const bw = Math.min(34, x.bandwidth());
     cats.forEach((c, i) => {
@@ -184,7 +184,7 @@
         acc += n;
       });
       if (totals[i]) svg.append('text').attr('x', x(c) + x.bandwidth() / 2).attr('y', y(totals[i]) - 6)
-        .attr('text-anchor', 'middle').attr('fill', cv('--fg')).attr('font-size', 12).attr('font-weight', 500).text(totals[i]);
+        .attr('text-anchor', 'middle').attr('fill', cv('--fg')).attr('font-size', 15).attr('font-weight', 700).attr('font-family', cv('--font')).text(totals[i]);
       svg.append('rect').attr('x', x(c)).attr('width', x.bandwidth()).attr('y', m.t).attr('height', H - m.t - m.b)
         .attr('fill', 'transparent')
         .on('mousemove', (ev) => showTip(ev, `${c} · รวม ${totals[i]} ครั้ง`,
