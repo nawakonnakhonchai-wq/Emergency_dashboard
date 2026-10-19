@@ -39,6 +39,8 @@
       <div class="fgroup"><span class="flabel">ปีงบประมาณ</span><div class="chips" id="f-fy"></div></div>
       <div class="fgroup"><span class="flabel">ไตรมาส</span><div class="chips" id="f-q"></div></div>
       <div class="fgroup"><span class="flabel">ประเภทเหตุ</span><div class="chips" id="f-type"></div></div>
+      <div class="fgroup"><label class="flabel" for="f-estate">นิคมอุตสาหกรรม</label>
+        <select class="select" id="f-estate"><option value="all">ทุกนิคม</option></select></div>
       <button type="button" class="link-btn reset" id="reset" hidden>ล้างตัวกรอง</button>
     </section>
 
@@ -76,7 +78,7 @@
       </article>
       <article class="card">
         <h2>นิคมอุตสาหกรรมที่เกิดเหตุ</h2>
-        <p class="note">เรียงจากมากไปน้อย สีบอกประเภทเหตุที่พบมากที่สุดในนิคมนั้น</p>
+        <p class="note" id="estate-note">เรียงจากมากไปน้อย สีบอกประเภทเหตุที่พบมากที่สุด คลิกชื่อนิคมเพื่อกรอง</p>
         <div class="scroll" id="ch-estate"></div>
       </article>
     </section>

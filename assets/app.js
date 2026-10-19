@@ -20,7 +20,7 @@
   const $ = (id) => document.getElementById(id);
   const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
 
-  const state = { fy: 'all', q: 'all', type: 'all', sortKey: 'case', sortDir: -1, search: '' };
+  const state = { fy: 'all', q: 'all', type: 'all', estate: 'all', sortKey: 'case', sortDir: -1, search: '' };
   let rows = [];
 
   // ---------- data ----------
@@ -105,6 +105,7 @@
     (opt.ignoreFy || state.fy === 'all' || r.fy === state.fy) &&
     (state.q === 'all' || r.q === state.q) &&
     (opt.ignoreType || state.type === 'all' || r.type === state.type) &&
+    (opt.ignoreEstate || state.estate === 'all' || r.estate === state.estate) &&
     (opt.fy == null || r.fy === opt.fy));
   const countBy = (list, key) => d3.rollup(list.filter((r) => r[key] != null), (v) => v.length, (r) => r[key]);
   const sum = (list, k) => d3.sum(list, (r) => r[k]);
@@ -139,7 +140,8 @@
     return b;
   }
   const set = (patch) => { Object.assign(state, patch); render(); };
-  $('reset').addEventListener('click', () => set({ fy: 'all', q: 'all', type: 'all' }));
+  $('reset').addEventListener('click', () => set({ fy: 'all', q: 'all', type: 'all', estate: 'all' }));
+  $('f-estate').addEventListener('change', (e) => set({ estate: e.target.value }));
 
   function drawFilters(fys, types) {
     $('f-fy').replaceChildren(chip('ทั้งหมด', state.fy === 'all', () => set({ fy: 'all' })),
@@ -148,7 +150,15 @@
       ...['1', '2', '3', '4'].map((q) => chip('Q' + q, state.q === q, () => set({ q }))));
     $('f-type').replaceChildren(chip('ทั้งหมด', state.type === 'all', () => set({ type: 'all' })),
       ...types.map((t) => chip(t, state.type === t, () => set({ type: t }), typeColor(t))));
-    $('reset').hidden = state.fy === 'all' && state.q === 'all' && state.type === 'all';
+    $('reset').hidden = state.fy === 'all' && state.q === 'all' && state.type === 'all' && state.estate === 'all';
+    // estate dropdown: every estate in the data, A–Z, with its count for the other filters
+    const sel = $('f-estate');
+    const counts = countBy(filtered({ ignoreEstate: true }), 'estate');
+    const names = [...new Set(rows.map((r) => r.estate).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'th'));
+    sel.replaceChildren(new Option(`ทุกนิคม (${fmt(names.length)} แห่ง)`, 'all'),
+      ...names.map((n) => new Option(`${n} (${fmt(counts.get(n) || 0)})`, n)));
+    sel.value = state.estate;
+    sel.classList.toggle('on', state.estate !== 'all');
   }
 
   // ---------- charts ----------
@@ -193,11 +203,16 @@
     });
   }
 
-  function hbars(box, items, total) {
+  function hbars(box, items, total, opt = {}) {
     const max = d3.max(items, (d) => d.n) || 1;
     const wrap = el('div', 'bars');
     for (const d of items) {
-      const row = el('div', 'bar');
+      const row = el(opt.onClick ? 'button' : 'div', 'bar');
+      if (opt.onClick) {
+        row.type = 'button'; row.classList.add('click');
+        row.addEventListener('click', () => opt.onClick(d));
+        if (opt.selected) { row.classList.add(d.label === opt.selected ? 'sel' : 'dim'); row.setAttribute('aria-pressed', d.label === opt.selected ? 'true' : 'false'); }
+      }
       const l = el('span', 'l', d.label); l.title = d.label;
       const t = el('span', 't'); const f = el('span', 'f');
       f.style.width = (d.n / max * 100) + '%'; f.style.background = d.color || cv('--bar');
@@ -247,7 +262,7 @@
       mk.addTo(layer);
     }
     $('map-note').textContent = `${fmt(pts.length)} จุดในช่วงที่เลือก · คลิกจุดเพื่อดูรายละเอียด · ขนาดตามจำนวนผู้บาดเจ็บและเสียชีวิต`;
-    const key = [state.fy, state.q, state.type].join('|');
+    const key = [state.fy, state.q, state.type, state.estate].join('|');
     if (pts.length && key !== lastFitKey) {
       map.fitBounds(L.latLngBounds(pts.map((r) => [r.lat, r.lon])).pad(0.15), { maxZoom: 11 });
       lastFitKey = key;
@@ -296,6 +311,7 @@
     const present = new Set(rows.map((r) => r.type));
     const types = TYPES.filter((t) => present.has(t)).concat([...present].filter((t) => !TYPES.includes(t)));
     if (state.fy !== 'all' && !fys.includes(state.fy)) state.fy = 'all';
+    if (state.estate !== 'all' && !rows.some((r) => r.estate === state.estate)) state.estate = 'all';
     drawFilters(fys, types);
 
     const cur = filtered();
@@ -319,7 +335,7 @@
 
     // takeaway
     const take = $('take'); take.replaceChildren();
-    const period = (state.fy === 'all' ? (fys.length ? `ปีงบประมาณ ${fys[0]}–${fys[fys.length - 1]}` : '') : `ปีงบประมาณ ${state.fy}`) + (state.q === 'all' ? '' : ` ไตรมาส ${state.q}`);
+    const period = (state.fy === 'all' ? (fys.length ? `ปีงบประมาณ ${fys[0]}–${fys[fys.length - 1]}` : '') : `ปีงบประมาณ ${state.fy}`) + (state.q === 'all' ? '' : ` ไตรมาส ${state.q}`) + (state.estate === 'all' ? '' : ` ที่นิคม${state.estate}`);
     const B = (t) => el('b', null, t), T = (t) => document.createTextNode(t);
     if (!rows.length) take.append(T('ยังไม่มีข้อมูล'));
     else if (!n) take.append(T(`ไม่พบเหตุใน${period}`));
@@ -329,7 +345,7 @@
         const top = [...countBy(cur, 'type')].sort((a, b) => b[1] - a[1])[0];
         if (top) take.append(T(` ส่วนใหญ่เป็น${top[0]} `), B(fmt(top[1])), T(' ครั้ง'));
       }
-      const te = [...countBy(cur, 'estate')].sort((a, b) => b[1] - a[1])[0];
+      const te = state.estate === 'all' && [...countBy(cur, 'estate')].sort((a, b) => b[1] - a[1])[0];
       if (te) take.append(T(` เกิดบ่อยที่สุดที่${te[0]} `), B(fmt(te[1])), T(' ครั้ง'));
       take.append(T(dead ? ' มีผู้เสียชีวิต ' : ' ไม่มีผู้เสียชีวิต'));
       if (dead) take.append(B(fmt(dead)), T(' ราย'));
@@ -352,11 +368,17 @@
     hbars($('ch-line'), ['1', '2', '3'].map((l) => ({ label: 'ปก.' + l, n: lc.get(l) || 0 })), n);
     hbars($('ch-ftype'), [...countBy(cur, 'ftype')].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, 6)
       .map(([k, v]) => ({ label: 'ประเภท ' + k, n: v })));
-    const byEst = d3.group(cur.filter((r) => r.estate), (r) => r.estate);
+    const byEst = d3.group(filtered({ ignoreEstate: true }).filter((r) => r.estate), (r) => r.estate);
     hbars($('ch-estate'), [...byEst].map(([k, v]) => {
       const dom = [...d3.rollup(v, (x) => x.length, (r) => r.type)].sort((a, b) => b[1] - a[1])[0][0];
       return { label: k, n: v.length, color: typeColor(dom) };
-    }).sort((a, b) => b.n - a.n || a.label.localeCompare(b.label, 'th')));
+    }).sort((a, b) => b.n - a.n || a.label.localeCompare(b.label, 'th')), 0, {
+      selected: state.estate === 'all' ? null : state.estate,
+      onClick: (d) => set({ estate: state.estate === d.label ? 'all' : d.label }),
+    });
+    $('estate-note').textContent = state.estate === 'all'
+      ? 'เรียงจากมากไปน้อย สีบอกประเภทเหตุที่พบมากที่สุด คลิกชื่อนิคมเพื่อกรอง'
+      : `กำลังกรองเฉพาะ${state.estate} คลิกอีกครั้งเพื่อดูทุกนิคม`;
 
     drawMap(cur);
     drawTable();
