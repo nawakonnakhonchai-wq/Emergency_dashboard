@@ -10,7 +10,7 @@
   function apply(t, announce) {
     root.dataset.theme = t;
     const meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.content = t === 'dark' ? '#101c30' : '#eef3f9';
+    if (meta) meta.content = t === 'dark' ? '#13233b' : '#e9f0f8';
     const b = document.getElementById('theme-btn');
     if (b) {
       b.setAttribute('aria-pressed', t === 'dark' ? 'true' : 'false');

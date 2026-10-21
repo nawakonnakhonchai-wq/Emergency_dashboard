@@ -37,7 +37,8 @@
   --t-inj: #f09440;
 
   /* masthead */
-  --top-bg: linear-gradient(165deg, #eef3f9 0%, #e1e9f3 100%);
+  --top-bg: linear-gradient(165deg, #e9f0f8 0%, #d8e3f0 100%);
+  --top-topo: url("topo-light.svg");
   --top-fg: #2a3a52;
   --top-fg-2: #5b6b82;
   --top-strong: #13233b;
@@ -96,7 +97,7 @@ button { font: inherit; }
 .wrap { max-width: 1560px; margin-inline: auto; padding-inline: max(16px, 2.2vw); }
 
 /* ---------- masthead ---------- */
-.top { background: var(--top-bg); color: var(--top-strong); border-radius: 0 0 26px 26px; box-shadow: var(--top-shadow); }
+.top { background: var(--top-topo) right center / cover no-repeat, var(--top-bg); color: var(--top-strong); border-radius: 0 0 26px 26px; box-shadow: var(--top-shadow); }
 .top-row { display: grid; grid-template-columns: 1fr auto 1fr; gap: 16px 24px; align-items: center; padding-block: 20px 8px; }
 .brand { display: flex; gap: 12px; align-items: center; min-width: 0; }
 .brand-mark { color: var(--top-mark); flex: none; }
@@ -433,7 +434,8 @@ html.authed .gate { display: none; }
   --tip-edge: #2e3d55;
   --parcel-edge: #b6c1cf;
   --sep: #4f5d72;
-  --top-bg: var(--navy);
+  --top-bg: linear-gradient(165deg, #13233b 0%, #0d192b 100%);
+  --top-topo: url("topo-dark.svg");
   --top-fg: #dbe3ee;
   --top-fg-2: #a3b1c4;
   --top-strong: #ffffff;
