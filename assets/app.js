@@ -63,12 +63,16 @@
     };
   }
 
+  let savedAt = null; // set when the answer came from the phone's saved copy (offline)
   async function fetchLive() {
     const out = [];
+    savedAt = null;
     for (let offset = 0; offset < 50000; offset += PAGE) {
       const p = new URLSearchParams({ where: '1=1', outFields: '*', returnGeometry: 'false', orderByFields: 'ObjectId', resultOffset: String(offset), resultRecordCount: String(PAGE), f: 'json' });
       const res = await fetch(`${SERVICE}?${p}`, { cache: 'no-store' });
       if (!res.ok) throw new Error('HTTP ' + res.status);
+      const stamp = Number(res.headers.get('x-emcc-cached-at'));
+      if (stamp && !navigator.onLine) savedAt = Math.min(savedAt || stamp, stamp);
       const j = await res.json();
       if (j.error) throw new Error(j.error.message || 'ArcGIS error');
       const feats = j.features || [];
@@ -98,11 +102,16 @@
       const live = await fetchLive();
       if (!live.length) throw new Error('empty');
       rows = live.map(normalize);
-      setStatus('live', `ข้อมูลสดจาก ArcGIS · ${fmt(rows.length)} เหตุ · ${time}`);
+      if (savedAt) {
+        const when = new Intl.DateTimeFormat('th-TH', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(savedAt));
+        setStatus('backup', `ออฟไลน์ · ข้อมูลที่บันทึกไว้เมื่อ ${when} · ${fmt(rows.length)} เหตุ`);
+      } else {
+        setStatus('live', `ข้อมูลสดจาก ArcGIS · ${fmt(rows.length)} เหตุ · ${time}`);
+      }
     } catch (e) {
       try {
         rows = (await fetchFallback()).map(normalize);
-        setStatus('backup', `ใช้ไฟล์ข้อมูลสำรอง · ${fmt(rows.length)} เหตุ`);
+        setStatus('backup', `${navigator.onLine ? '' : 'ออฟไลน์ · '}ใช้ไฟล์ข้อมูลสำรอง · ${fmt(rows.length)} เหตุ`);
       } catch (e2) {
         rows = [];
         setStatus('err', 'โหลดข้อมูลไม่สำเร็จ');
@@ -112,6 +121,8 @@
     render();
   }
   $('refresh').addEventListener('click', load);
+  // back online after showing saved data: fetch fresh numbers
+  addEventListener('online', () => { if (rows.length && $('status-dot').classList.contains('backup')) load(); });
 
   // ---------- helpers ----------
   const filtered = (opt = {}) => rows.filter((r) =>
