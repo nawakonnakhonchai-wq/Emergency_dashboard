@@ -1,6 +1,6 @@
 /* EMCC dashboard service worker — makes the site installable and usable offline.
    Bump VERSION whenever app files change so phones pick up the new version. */
-const VERSION = 'emcc-v3';
+const VERSION = 'emcc-v4';
 const SHELL = `${VERSION}-shell`;     // the app's own files
 const LIBS = `${VERSION}-libs`;       // d3, Leaflet, fonts from CDNs
 const DATA = 'emcc-data';             // last ArcGIS answers (kept across versions)
