@@ -6,20 +6,14 @@
   <title>สถิติอุบัติเหตุนิคมฯ | EMCC</title>
   <meta name="description" content="สถิติการเกิดอุบัติเหตุในพื้นที่นิคมอุตสาหกรรมและท่าเรือ ข้อมูลจากศูนย์เฝ้าระวังคุณภาพสิ่งแวดล้อม และความปลอดภัย (EMCC)">
   <meta name="theme-color" content="#13233b">
-  <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" type="image/png" sizes="48x48" href="icons/favicon-48.png">
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-  <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-title" content="EMCC">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sarabun:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
-  <link rel="stylesheet" href="assets/style.css?v=15">
+  <link rel="stylesheet" href="assets/style.css?v=16">
   <script src="assets/theme.js?v=2"></script>
   <script src="assets/auth.js?v=8"></script>
-  <script src="assets/pwa.js?v=1"></script>
 </head>
 <body>
   <div class="gate" id="gate">
@@ -68,8 +62,6 @@
             <svg class="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg>
             <svg class="i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"/></svg>
             <span class="theme-label">ธีมมืด</span></button>
-          <button type="button" class="install" id="install" hidden>
-            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10.5l5 5 5-5M5 20h14"/></svg>ติดตั้งแอป</button>
           <button type="button" class="refresh" id="refresh">โหลดข้อมูลใหม่</button>
           <span class="who-sep" aria-hidden="true">·</span><span class="who" id="who"></span>
           <button type="button" class="refresh" id="logout">ออกจากระบบ</button></div>
@@ -211,6 +203,6 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
   <script src="https://unpkg.com/esri-leaflet@3.0.19/dist/esri-leaflet.js" crossorigin=""></script>
-  <script src="assets/app.js?v=12"></script>
+  <script src="assets/app.js?v=13"></script>
 </body>
 </html>
