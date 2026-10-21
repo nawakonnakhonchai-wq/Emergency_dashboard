@@ -345,7 +345,7 @@
     const arcs = d3.pie().sort(null).value((d) => d.n)(items);
     const arc = d3.arc().innerRadius(r).outerRadius(R);
     arcs.forEach((a, i) => {
-      g.append('path').attr('d', arc(a)).attr('fill', colors[i]).attr('stroke', '#fff').attr('stroke-width', 2)
+      g.append('path').attr('d', arc(a)).attr('fill', colors[i]).attr('stroke', cv('--panel')).attr('stroke-width', 2)
         .on('mousemove', (ev) => showTip(ev, a.data.label, [[colors[i], '', `${fmt(a.data.n)} ครั้ง · ${pct1(a.data.n / total)}`]]))
         .on('mouseleave', hideTip);
     });
@@ -431,7 +431,7 @@
   ];
   const parcelKind = (d) => PARCEL_KINDS.find((k) => k.test(d || ''));
   let parcels = null, parcelLoading = false, parcelError = false;
-  const parcelStroke = () => (bases.imagery && map.hasLayer(bases.imagery) ? '#ffffff' : '#4a4d52');
+  const parcelStroke = () => (bases.imagery && map.hasLayer(bases.imagery) ? '#ffffff' : cv('--parcel-edge'));
   function parcelStyle(f) {
     const k = parcelKind(f.properties.Discription);
     return { color: parcelStroke(), weight: 1, opacity: 0.85, fillColor: k.fill, fillOpacity: k.key === 'ind' ? 0.12 : 0.22 };
@@ -479,6 +479,16 @@
   let markers = new Map();
   let focusCase = null;
   const bases = {};
+  let baseChoice = 'gray';
+  const isDark = () => document.documentElement.dataset.theme === 'dark';
+  /* the plain map follows the theme: light grey or dark grey; satellite stays as is */
+  function applyBase() {
+    if (!map) return;
+    const key = baseChoice === 'gray' && isDark() ? 'dark' : baseChoice;
+    Object.entries(bases).forEach(([k, l]) => { if (k !== key && map.hasLayer(l)) map.removeLayer(l); });
+    if (!map.hasLayer(bases[key])) { bases[key].addTo(map); if (bases[key].bringToBack) bases[key].bringToBack(); }
+    if (typeof parcels !== 'undefined' && parcels) parcels.setStyle(parcelStyle);
+  }
   function initMap() {
     if (typeof L === 'undefined') { $('map').replaceChildren(el('div', 'empty', 'โหลดแผนที่ไม่ได้')); return; }
     map = L.map('map', { scrollWheelZoom: false }).setView([13.2, 101.0], 8);
@@ -486,15 +496,18 @@
       L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', { maxZoom: 16, attribution: 'Esri, HERE, Garmin, © OpenStreetMap contributors' }),
       L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}', { maxZoom: 16 }),
     ]);
+    bases.dark = L.layerGroup([
+      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', { maxZoom: 16, attribution: 'Esri, HERE, Garmin, © OpenStreetMap contributors' }),
+      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}', { maxZoom: 16 }),
+    ]);
     bases.imagery = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 18, attribution: 'Esri, Maxar, Earthstar Geographics' });
-    bases.gray.addTo(map);
+    applyBase();
     layer = L.layerGroup().addTo(map);
     ringLayer = L.layerGroup().addTo(map);
     document.querySelectorAll('#basemap .seg-btn').forEach((b) => b.addEventListener('click', () => {
-      Object.values(bases).forEach((l) => map.removeLayer(l));
-      bases[b.dataset.base].addTo(map);
+      baseChoice = b.dataset.base;
+      applyBase();
       document.querySelectorAll('#basemap .seg-btn').forEach((o) => o.setAttribute('aria-pressed', o === b ? 'true' : 'false'));
-      if (parcels) parcels.setStyle(parcelStyle);
     }));
     initParcels();
   }
@@ -664,6 +677,8 @@
     row.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'center' });
     row.focus({ preventScroll: true });
   });
+  // theme switched: swap the plain basemap and redraw charts in the new colours
+  addEventListener('emcc-theme', () => { applyBase(); if (rows.length) render(); });
   initMap();
   // Wait for the login gate (assets/auth.js) before fetching data.
   (window.emccReady || Promise.resolve()).then(load);

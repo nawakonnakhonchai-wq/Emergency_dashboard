@@ -1,6 +1,6 @@
 /* EMCC dashboard service worker — makes the site installable and usable offline.
    Bump VERSION whenever app files change so phones pick up the new version. */
-const VERSION = 'emcc-v2';
+const VERSION = 'emcc-v3';
 const SHELL = `${VERSION}-shell`;     // the app's own files
 const LIBS = `${VERSION}-libs`;       // d3, Leaflet, fonts from CDNs
 const DATA = 'emcc-data';             // last ArcGIS answers (kept across versions)
@@ -10,7 +10,7 @@ const MAX_TILES = 600;
 
 const SHELL_FILES = [
   './', 'index.html', 'manifest.webmanifest',
-  'assets/style.css', 'assets/app.js', 'assets/auth.js', 'assets/pwa.js',
+  'assets/style.css', 'assets/app.js', 'assets/auth.js', 'assets/pwa.js', 'assets/theme.js',
   'data/emergency_case.json',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/maskable-512.png', 'icons/favicon-48.png',
 ];
