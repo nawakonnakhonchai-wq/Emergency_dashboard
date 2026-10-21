@@ -2,7 +2,7 @@
    white rounded cards in four columns. Charts are charcoal and light grey; teal marks the
    selected period, red/green dots show change against the year before. */
 :root {
-  --bg: #e7e8ea;
+  --bg: #e8ebef;
   --panel: #ffffff;
   --panel-2: #f6f6f7;
   --fg: #161616;
@@ -37,29 +37,29 @@
   --t-inj: #f09440;
 
   /* masthead */
-  --top-bg: #ffffff;
+  --top-bg: linear-gradient(165deg, #eef3f9 0%, #e1e9f3 100%);
   --top-fg: #2a3a52;
   --top-fg-2: #5b6b82;
   --top-strong: #13233b;
   --top-mark: #1aa39d;
   --top-underline: #a9b6c8;
-  --top-btn: #eef1f5;
-  --top-btn-edge: #dde3ea;
-  --top-btn-hover: #e1e6ed;
-  --top-shadow: 0 1px 0 #dde3ea, 0 10px 28px -18px rgba(19, 35, 59, .35);
+  --top-btn: #ffffff;
+  --top-btn-edge: #cfd9e6;
+  --top-btn-hover: #f1f4f8;
+  --top-shadow: 0 1px 0 #d3dde9, 0 10px 28px -18px rgba(19, 35, 59, .35);
 
   /* surfaces + text that change with the theme */
   --text-2: #3a3d42;     /* sub-headings, labels */
   --cause: #33363b;
-  --chip: #eef1f5;       /* header pickers */
-  --chip-hover: #e1e6ed;
+  --chip: #ffffff;       /* header pickers */
+  --chip-hover: #eef2f7;
   --chip-fg: #111111;
   --chip-k: #55595f;
   --step: #333333;
   --step-off: #b3b3b3;
-  --nav-bg: #eef1f5;
-  --nav-edge: #dde3ea;
-  --nav-hover: #e1e6ed;
+  --nav-bg: #ffffff;
+  --nav-edge: #cfd9e6;
+  --nav-hover: #eef2f7;
   --sel: var(--navy);    /* selected controls */
   --sel-on: #ffffff;     /* chosen dropdown */
   --soft: #ececee;       /* small toggles */
@@ -71,9 +71,9 @@
   --row-focus: #dff3f1;
   --warn-text: #c27a0e;
   --err-bg: #fdecee;
-  --ghost: #e8edf3;
+  --ghost: #ffffff;
   --ghost-fg: #13233b;
-  --ghost-hover: #dbe2ea;
+  --ghost-hover: #eef2f7;
   --card-edge: transparent;
   --card-shadow: 0 1px 2px rgba(0, 0, 0, .04), 0 10px 30px -18px rgba(0, 0, 0, .25);
   --tip-edge: transparent;
@@ -135,7 +135,7 @@ button { font: inherit; }
 .title-r { display: grid; gap: 10px; justify-items: end; max-width: 100%; }
 .pick-label { font-size: 15px; font-style: italic; color: var(--top-fg-2); }
 .pickers { display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-end; max-width: 100%; }
-.pick { background: var(--chip); color: var(--chip-fg); border-radius: 12px; display: flex; align-items: center; min-height: 58px; }
+.pick { background: var(--chip); color: var(--chip-fg); box-shadow: 0 0 0 1px var(--nav-edge); border-radius: 12px; display: flex; align-items: center; min-height: 58px; }
 .pick-k { display: block; font-size: 12.5px; color: var(--chip-k); line-height: 1.2; }
 .pick-v { display: block; font-family: var(--font-head); font-size: 17px; font-weight: 700; line-height: 1.3; }
 .stepper { padding: 0 4px; }
